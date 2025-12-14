@@ -1,6 +1,10 @@
-export function Home({ onCreateRoom, onJoinRoom }) {
+export function Home({ onCreateRoom, onJoinRoom, onOpenProfile, playerName }) {
   return (
     <div className="screen home">
+      <button className="profile-button" onClick={onOpenProfile}>
+        {playerName ? playerName.charAt(0).toUpperCase() : '?'}
+      </button>
+
       <h1>HOT TAKE</h1>
       <p className="subtitle">Where do you stand?</p>
 

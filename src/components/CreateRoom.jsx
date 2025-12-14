@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
-export function CreateRoom({ onBack, onCreateRoom, loading, error }) {
-  const [name, setName] = useState('')
+export function CreateRoom({ onBack, onCreateRoom, loading, error, savedName }) {
+  const [name, setName] = useState(savedName || '')
 
   const handleSubmit = (e) => {
     e.preventDefault()

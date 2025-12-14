@@ -1,4 +1,4 @@
-export function HiddenScreen({ category, playerName, confirmed, onPeek, onConfirm, playersConfirmed, totalPlayers }) {
+export function HiddenScreen({ category, playerName, isHost, onPeek, onReveal }) {
   return (
     <div className="screen hidden-screen">
       {playerName && <h2 className="player-name-header">{playerName}</h2>}
@@ -9,15 +9,14 @@ export function HiddenScreen({ category, playerName, confirmed, onPeek, onConfir
         <p className="peek-hint">Tap to peek</p>
       </div>
 
-      {confirmed ? (
-        <div className="confirmed-status">
-          <p>Position locked!</p>
-          <p className="waiting">Waiting for others... ({playersConfirmed}/{totalPlayers})</p>
-        </div>
-      ) : (
-        <button className="btn btn-primary" onClick={onConfirm}>
-          Lock In Position
+      {isHost ? (
+        <button className="btn btn-primary" onClick={onReveal}>
+          Reveal Numbers
         </button>
+      ) : (
+        <div className="waiting-for-host">
+          <p>Waiting for host to reveal...</p>
+        </div>
       )}
     </div>
   )

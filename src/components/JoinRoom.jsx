@@ -1,8 +1,8 @@
 import { useState } from 'react'
 
-export function JoinRoom({ onBack, onJoinRoom, loading, error }) {
-  const [code, setCode] = useState('')
-  const [name, setName] = useState('')
+export function JoinRoom({ onBack, onJoinRoom, loading, error, savedName, initialCode }) {
+  const [code, setCode] = useState(initialCode || '')
+  const [name, setName] = useState(savedName || '')
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -10,6 +10,10 @@ export function JoinRoom({ onBack, onJoinRoom, loading, error }) {
       onJoinRoom(code.trim().toUpperCase(), name.trim())
     }
   }
+
+  // Focus on name if we have a code from URL, otherwise focus on code
+  const codeAutoFocus = !initialCode
+  const nameAutoFocus = initialCode && !savedName
 
   return (
     <div className="screen join-room">
@@ -27,7 +31,7 @@ export function JoinRoom({ onBack, onJoinRoom, loading, error }) {
             onChange={(e) => setCode(e.target.value.toUpperCase())}
             placeholder="ABCD1"
             maxLength={5}
-            autoFocus
+            autoFocus={codeAutoFocus}
             autoComplete="off"
             className="code-input"
           />
@@ -42,6 +46,7 @@ export function JoinRoom({ onBack, onJoinRoom, loading, error }) {
             onChange={(e) => setName(e.target.value)}
             placeholder="Enter your name"
             maxLength={20}
+            autoFocus={nameAutoFocus}
             autoComplete="off"
           />
         </div>

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRoom } from './hooks/useRoom'
 import { Home } from './components/Home'
 import { CreateRoom } from './components/CreateRoom'
@@ -8,10 +8,13 @@ import { NumberReveal } from './components/NumberReveal'
 import { HiddenScreen } from './components/HiddenScreen'
 import { RevealScreen } from './components/RevealScreen'
 import { GameBoard } from './components/GameBoard'
+import { Profile } from './components/Profile'
 
 // Screen states: 'home' | 'create' | 'join' | 'game'
 function App() {
   const [screen, setScreen] = useState('home')
+  const [pendingRoomCode, setPendingRoomCode] = useState(null)
+  const [showProfile, setShowProfile] = useState(false)
   const {
     room,
     loading,
@@ -19,17 +22,39 @@ function App() {
     playerId,
     currentPlayer,
     isHost,
+    savedName,
+    profile,
     createRoom,
     joinRoom,
+    tryRejoin,
     setCategory,
     setMode,
     startRound,
     toggleHidden,
     updateSlot,
-    confirmPosition,
+    revealNumbers,
     nextRound,
-    leaveRoom
+    leaveRoom,
+    updateProfileName
   } = useRoom()
+
+  // Try to rejoin on mount
+  useEffect(() => {
+    const attemptRejoin = async () => {
+      const result = await tryRejoin()
+      if (result) {
+        if (result.needsJoin) {
+          // URL has room code but we're not in it - go to join screen
+          setPendingRoomCode(result.code)
+          setScreen('join')
+        } else {
+          // Successfully rejoined
+          setScreen('game')
+        }
+      }
+    }
+    attemptRejoin()
+  }, [tryRejoin])
 
   // Handle room creation
   const handleCreateRoom = async (name) => {
@@ -56,10 +81,20 @@ function App() {
   // Render home screen
   if (screen === 'home') {
     return (
-      <Home
-        onCreateRoom={() => setScreen('create')}
-        onJoinRoom={() => setScreen('join')}
-      />
+      <>
+        <Home
+          onCreateRoom={() => setScreen('create')}
+          onJoinRoom={() => setScreen('join')}
+          onOpenProfile={() => setShowProfile(true)}
+          playerName={savedName}
+        />
+        <Profile
+          isOpen={showProfile}
+          onClose={() => setShowProfile(false)}
+          profile={profile}
+          onUpdateName={updateProfileName}
+        />
+      </>
     )
   }
 
@@ -71,6 +106,7 @@ function App() {
         onCreateRoom={handleCreateRoom}
         loading={loading}
         error={error}
+        savedName={savedName}
       />
     )
   }
@@ -83,6 +119,8 @@ function App() {
         onJoinRoom={handleJoinRoom}
         loading={loading}
         error={error}
+        savedName={savedName}
+        initialCode={pendingRoomCode}
       />
     )
   }
@@ -103,8 +141,8 @@ function App() {
       )
     }
 
-    // Playing/Confirming phases
-    if (room.phase === 'playing' || room.phase === 'confirming') {
+    // Playing phase
+    if (room.phase === 'playing') {
       const isRemoteMode = room.mode === 'remote'
 
       // Remote mode - show the game board
@@ -119,7 +157,7 @@ function App() {
             isHost={isHost}
             onUpdateSlot={updateSlot}
             onToggleHidden={toggleHidden}
-            onConfirm={confirmPosition}
+            onReveal={revealNumbers}
             onNextRound={nextRound}
             onLeave={handleLeave}
           />
@@ -127,8 +165,6 @@ function App() {
       }
 
       // Table mode - show number or hidden screen based on player's hidden state
-      const playersConfirmed = room.players.filter(p => p.confirmed).length
-
       if (currentPlayer && !currentPlayer.hidden) {
         return (
           <NumberReveal
@@ -143,11 +179,9 @@ function App() {
         <HiddenScreen
           category={room.category}
           playerName={currentPlayer?.name}
-          confirmed={currentPlayer?.confirmed}
+          isHost={isHost}
           onPeek={toggleHidden}
-          onConfirm={confirmPosition}
-          playersConfirmed={playersConfirmed}
-          totalPlayers={room.players.length}
+          onReveal={revealNumbers}
         />
       )
     }

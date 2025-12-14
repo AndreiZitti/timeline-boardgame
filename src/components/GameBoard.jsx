@@ -9,7 +9,7 @@ export function GameBoard({
   isHost,
   onUpdateSlot,
   onToggleHidden,
-  onConfirm,
+  onReveal,
   onNextRound,
   onLeave
 }) {
@@ -23,7 +23,7 @@ export function GameBoard({
 
   // Handle drag start
   const handleDragStart = (e, player) => {
-    if (player.id !== playerId || player.confirmed) return
+    if (player.id !== playerId) return
     setDraggingCard(player.id)
     e.dataTransfer.effectAllowed = 'move'
   }
@@ -37,7 +37,7 @@ export function GameBoard({
   // Handle drop on slot
   const handleDrop = (e, slotIndex) => {
     e.preventDefault()
-    if (draggingCard === playerId && !currentPlayer.confirmed) {
+    if (draggingCard === playerId) {
       onUpdateSlot(slotIndex)
     }
     setDraggingCard(null)
@@ -45,19 +45,19 @@ export function GameBoard({
 
   // Handle click on slot (mobile-friendly)
   const handleSlotClick = (slotIndex) => {
-    if (!currentPlayer || currentPlayer.confirmed) return
+    if (!currentPlayer) return
     onUpdateSlot(slotIndex)
   }
 
   // Handle card click to peek
   const handleCardClick = (player, e) => {
     e.stopPropagation()
-    if (player.id === playerId && !player.confirmed) {
+    if (player.id === playerId) {
       onToggleHidden()
     }
   }
 
-  const playersConfirmed = players.filter(p => p.confirmed).length
+  const playersPlaced = players.filter(p => p.slot !== null).length
   const isRevealed = phase === 'revealed'
 
   return (
@@ -86,8 +86,8 @@ export function GameBoard({
               >
                 {playerInSlot && (
                   <div
-                    className={`player-card ${isMySlot ? 'mine' : ''} ${playerInSlot.confirmed ? 'confirmed' : ''} ${draggingCard === playerInSlot.id ? 'dragging' : ''}`}
-                    draggable={isMySlot && !playerInSlot.confirmed}
+                    className={`player-card ${isMySlot ? 'mine' : ''} ${draggingCard === playerInSlot.id ? 'dragging' : ''}`}
+                    draggable={isMySlot}
                     onDragStart={(e) => handleDragStart(e, playerInSlot)}
                     onClick={(e) => handleCardClick(playerInSlot, e)}
                   >
@@ -107,26 +107,21 @@ export function GameBoard({
                             <span className="card-number">{playerInSlot.number}</span>
                           )}
                           <span className="card-name">You</span>
-                          {!playerInSlot.confirmed && (
-                            <span className="card-hint">
-                              {playerInSlot.hidden ? 'Tap to peek' : 'Tap to hide'}
-                            </span>
-                          )}
+                          <span className="card-hint">
+                            {playerInSlot.hidden ? 'Tap to peek' : 'Tap to hide'}
+                          </span>
                         </>
                       ) : (
                         // Other players' cards
                         <>
                           <span className="card-hidden">?</span>
                           <span className="card-name">{playerInSlot.name}</span>
-                          {playerInSlot.confirmed && (
-                            <span className="card-locked">Locked</span>
-                          )}
                         </>
                       )}
                     </div>
                   </div>
                 )}
-                {isEmpty && !currentPlayer?.confirmed && (
+                {isEmpty && (
                   <div className="slot-placeholder">
                     <span>{slotIndex + 1}</span>
                   </div>
@@ -146,7 +141,7 @@ export function GameBoard({
               <div
                 key={player.id}
                 className={`player-card unplaced ${isMe ? 'mine' : ''}`}
-                draggable={isMe && !player.confirmed}
+                draggable={isMe}
                 onDragStart={(e) => handleDragStart(e, player)}
                 onClick={(e) => isMe && handleCardClick(player, e)}
               >
@@ -179,15 +174,15 @@ export function GameBoard({
         <div className="board-actions">
           {currentPlayer?.slot === null ? (
             <p className="board-hint">Drag your card to a position, or tap a slot</p>
-          ) : currentPlayer?.confirmed ? (
-            <div className="confirmed-status">
-              <p>Position locked!</p>
-              <p className="waiting">Waiting for others... ({playersConfirmed}/{players.length})</p>
+          ) : isHost ? (
+            <div>
+              <p className="board-hint" style={{ marginBottom: '12px' }}>{playersPlaced}/{players.length} players placed</p>
+              <button className="btn btn-primary" onClick={onReveal}>
+                Reveal Numbers
+              </button>
             </div>
           ) : (
-            <button className="btn btn-primary" onClick={onConfirm}>
-              Lock In Position
-            </button>
+            <p className="board-hint">Waiting for host to reveal...</p>
           )}
         </div>
       )}

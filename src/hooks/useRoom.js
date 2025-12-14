@@ -12,11 +12,74 @@ function getPlayerId() {
   return id
 }
 
+// Get saved player name from localStorage
+function getSavedName() {
+  return localStorage.getItem('playerName') || ''
+}
+
+// Save player name to localStorage
+function savePlayerName(name) {
+  localStorage.setItem('playerName', name)
+}
+
+// Get profile stats from localStorage
+function getProfileStats() {
+  return {
+    gamesPlayed: parseInt(localStorage.getItem('gamesPlayed') || '0', 10),
+    gamesHosted: parseInt(localStorage.getItem('gamesHosted') || '0', 10)
+  }
+}
+
+// Increment games played counter
+function incrementGamesPlayed() {
+  const current = parseInt(localStorage.getItem('gamesPlayed') || '0', 10)
+  localStorage.setItem('gamesPlayed', (current + 1).toString())
+}
+
+// Increment games hosted counter
+function incrementGamesHosted() {
+  const current = parseInt(localStorage.getItem('gamesHosted') || '0', 10)
+  localStorage.setItem('gamesHosted', (current + 1).toString())
+}
+
+// Get saved room code from localStorage
+function getSavedRoomCode() {
+  return localStorage.getItem('roomCode') || null
+}
+
+// Save room code to localStorage
+function saveRoomCode(code) {
+  if (code) {
+    localStorage.setItem('roomCode', code)
+  } else {
+    localStorage.removeItem('roomCode')
+  }
+}
+
+// Get room code from URL params
+function getRoomCodeFromURL() {
+  const params = new URLSearchParams(window.location.search)
+  return params.get('room')?.toUpperCase() || null
+}
+
+// Update URL with room code
+function updateURLWithRoomCode(code) {
+  const url = new URL(window.location.href)
+  if (code) {
+    url.searchParams.set('room', code)
+  } else {
+    url.searchParams.delete('room')
+  }
+  window.history.replaceState({}, '', url)
+}
+
 export function useRoom() {
   const [room, setRoom] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [playerId] = useState(getPlayerId)
+  const [savedName, setSavedName] = useState(getSavedName)
+  const [profileStats, setProfileStats] = useState(getProfileStats)
 
   // Get current player from room
   const currentPlayer = room?.players?.find(p => p.id === playerId)
@@ -38,6 +101,11 @@ export function useRoom() {
         },
         (payload) => {
           if (payload.new) {
+            // Check if phase changed to 'revealed' - count as game played
+            if (payload.old?.phase !== 'revealed' && payload.new.phase === 'revealed') {
+              incrementGamesPlayed()
+              setProfileStats(getProfileStats())
+            }
             setRoom(payload.new)
           }
         }
@@ -48,6 +116,55 @@ export function useRoom() {
       supabase.removeChannel(channel)
     }
   }, [room?.code])
+
+  // Try to rejoin a room (from URL or localStorage)
+  const tryRejoin = useCallback(async () => {
+    const urlCode = getRoomCodeFromURL()
+    const savedCode = getSavedRoomCode()
+    const code = urlCode || savedCode
+
+    if (!code) return null
+
+    setLoading(true)
+    try {
+      const { data: existingRoom, error: fetchError } = await supabase
+        .from('rooms')
+        .select()
+        .eq('code', code)
+        .single()
+
+      if (fetchError || !existingRoom) {
+        // Room doesn't exist anymore, clear saved data
+        saveRoomCode(null)
+        updateURLWithRoomCode(null)
+        return null
+      }
+
+      // Check if we're in this room
+      const existingPlayer = existingRoom.players.find(p => p.id === playerId)
+      if (existingPlayer) {
+        saveRoomCode(existingRoom.code)
+        updateURLWithRoomCode(existingRoom.code)
+        setRoom(existingRoom)
+        return existingRoom
+      }
+
+      // We're not in the room - if there's a URL code, return it for joining
+      // Otherwise clear saved data
+      if (urlCode) {
+        return { code: urlCode, needsJoin: true }
+      }
+
+      saveRoomCode(null)
+      return null
+    } catch (err) {
+      saveRoomCode(null)
+      updateURLWithRoomCode(null)
+      return null
+    } finally {
+      setLoading(false)
+    }
+  }, [playerId])
 
   // Create a new room
   const createRoom = useCallback(async (hostName) => {
@@ -72,6 +189,12 @@ export function useRoom() {
         .single()
 
       if (supabaseError) throw supabaseError
+
+      // Save to localStorage and URL
+      savePlayerName(hostName)
+      saveRoomCode(data.code)
+      updateURLWithRoomCode(data.code)
+
       setRoom(data)
       return data
     } catch (err) {
@@ -101,6 +224,11 @@ export function useRoom() {
       // Check if player already in room
       const existingPlayer = existingRoom.players.find(p => p.id === playerId)
       if (existingPlayer) {
+        // Save to localStorage and URL
+        savePlayerName(playerName)
+        saveRoomCode(existingRoom.code)
+        updateURLWithRoomCode(existingRoom.code)
+
         setRoom(existingRoom)
         return existingRoom
       }
@@ -119,6 +247,12 @@ export function useRoom() {
         .single()
 
       if (updateError) throw updateError
+
+      // Save to localStorage and URL
+      savePlayerName(playerName)
+      saveRoomCode(data.code)
+      updateURLWithRoomCode(data.code)
+
       setRoom(data)
       return data
     } catch (err) {
@@ -169,7 +303,13 @@ export function useRoom() {
       })
       .eq('code', room.code)
 
-    if (updateError) setError(updateError.message)
+    if (!updateError) {
+      // Increment games hosted counter
+      incrementGamesHosted()
+      setProfileStats(getProfileStats())
+    } else {
+      setError(updateError.message)
+    }
   }, [room, isHost])
 
   // Toggle number visibility
@@ -219,34 +359,17 @@ export function useRoom() {
     if (updateError) setError(updateError.message)
   }, [room, currentPlayer, playerId])
 
-  // Confirm position
-  const confirmPosition = useCallback(async () => {
-    if (!room || !currentPlayer) return
-
-    // In remote mode, must have a slot selected
-    if (room.mode === 'remote' && currentPlayer.slot === null) {
-      setError('Please select a position on the board first')
-      return
-    }
-
-    const updatedPlayers = room.players.map(p =>
-      p.id === playerId ? { ...p, confirmed: true, hidden: true } : p
-    )
-
-    // Check if all players confirmed
-    const allConfirmed = updatedPlayers.every(p => p.confirmed)
-    const newPhase = allConfirmed ? 'revealed' : 'confirming'
+  // Reveal all numbers (host only)
+  const revealNumbers = useCallback(async () => {
+    if (!room || !isHost) return
 
     const { error: updateError } = await supabase
       .from('rooms')
-      .update({
-        players: updatedPlayers,
-        phase: newPhase
-      })
+      .update({ phase: 'revealed' })
       .eq('code', room.code)
 
     if (updateError) setError(updateError.message)
-  }, [room, currentPlayer, playerId])
+  }, [room, isHost])
 
   // Next round (host only)
   const nextRound = useCallback(async () => {
@@ -275,9 +398,24 @@ export function useRoom() {
 
   // Leave room
   const leaveRoom = useCallback(() => {
+    saveRoomCode(null)
+    updateURLWithRoomCode(null)
     setRoom(null)
     setError(null)
   }, [])
+
+  // Update profile name
+  const updateProfileName = useCallback((name) => {
+    savePlayerName(name)
+    setSavedName(name)
+  }, [])
+
+  // Get full profile object
+  const profile = {
+    playerId,
+    name: savedName,
+    ...profileStats
+  }
 
   return {
     room,
@@ -286,15 +424,19 @@ export function useRoom() {
     playerId,
     currentPlayer,
     isHost,
+    savedName,
+    profile,
     createRoom,
     joinRoom,
+    tryRejoin,
     setCategory,
     setMode,
     startRound,
     toggleHidden,
     updateSlot,
-    confirmPosition,
+    revealNumbers,
     nextRound,
-    leaveRoom
+    leaveRoom,
+    updateProfileName
   }
 }
