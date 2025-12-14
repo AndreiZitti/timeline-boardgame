@@ -469,6 +469,136 @@ h3 {
   font-size: 1.25rem;
 }
 
+/* Category Picker */
+.category-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.category-buttons .btn-small {
+  flex: 1;
+  margin-top: 0;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+}
+
+.category-buttons .btn-random {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+}
+
+.category-picker {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 1.5rem;
+  max-height: 50vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.group-toggles {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.toggles-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.toggle-chip {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.toggle-chip.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.toggle-chip.nsfw {
+  border-color: #ff6b6b;
+}
+
+.toggle-chip.nsfw.active {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+  border-color: transparent;
+}
+
+.group-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+}
+
+.tab {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  border-radius: 8px 8px 0 0;
+  transition: all 0.2s;
+}
+
+.tab:hover {
+  color: var(--text-primary);
+}
+
+.tab.active {
+  background: var(--border);
+  color: var(--text-primary);
+}
+
+.tab.nsfw {
+  color: #ff6b6b;
+}
+
+.tab.nsfw.active {
+  background: rgba(255, 107, 107, 0.2);
+}
+
+.category-list {
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.category-item {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s;
+}
+
+.category-item:hover {
+  border-color: var(--accent);
+  background: rgba(233, 69, 96, 0.1);
+}
+
 /* Responsive */
 @media (min-width: 481px) {
   .screen {
