@@ -8,10 +8,10 @@ export function GameHub({ playerName, onOpenProfile, onSelectGame }) {
       accent: '#a855f7'
     },
     {
-      id: 'wavelength',
-      name: 'Wavelength',
-      description: 'Find the sweet spot on the spectrum.',
-      available: false,
+      id: 'like-minded',
+      name: 'Like Minded',
+      description: 'Give clues. Find the wavelength. Beat the game!',
+      available: true,
       accent: '#06b6d4'
     }
   ]

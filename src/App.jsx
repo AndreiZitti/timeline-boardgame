@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { GameHub } from './components/GameHub'
 import { Profile } from './components/Profile'
 import { HotTakeGame } from './games/hot-take'
+import { LikeMindedGame } from './games/like-minded'
 
 // Get saved player name from localStorage
 function getSavedName() {
@@ -72,6 +73,14 @@ function App() {
         onBack={handleBackToHub}
         savedName={savedName}
         onUpdateName={updateProfileName}
+      />
+    )
+  }
+
+  if (currentGame === 'like-minded') {
+    return (
+      <LikeMindedGame
+        onBack={handleBackToHub}
       />
     )
   }

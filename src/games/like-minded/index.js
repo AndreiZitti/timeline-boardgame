@@ -1,0 +1,1 @@
+export { LikeMindedGame } from './LikeMindedGame'
