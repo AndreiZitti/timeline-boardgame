@@ -88,7 +88,7 @@ export function useWavelengthRoom() {
         'postgres_changes',
         {
           event: '*',
-          schema: 'public',
+          schema: 'games',
           table: 'wavelength_rooms',
           filter: `code=eq.${room.code}`
         },
@@ -119,7 +119,7 @@ export function useWavelengthRoom() {
     setLoading(true)
     try {
       const { data: existingRoom, error: fetchError } = await supabase
-        .from('wavelength_rooms')
+        .from('games.wavelength_rooms')
         .select()
         .eq('code', code)
         .single()
@@ -168,7 +168,7 @@ export function useWavelengthRoom() {
       }
 
       const { data, error: supabaseError } = await supabase
-        .from('wavelength_rooms')
+        .from('games.wavelength_rooms')
         .insert(newRoom)
         .select()
         .single()
@@ -195,7 +195,7 @@ export function useWavelengthRoom() {
 
     try {
       const { data: existingRoom, error: fetchError } = await supabase
-        .from('wavelength_rooms')
+        .from('games.wavelength_rooms')
         .select()
         .eq('code', code.toUpperCase())
         .single()
@@ -212,7 +212,7 @@ export function useWavelengthRoom() {
       const updatedPlayers = [...existingRoom.players, playerName]
 
       const { data, error: updateError } = await supabase
-        .from('wavelength_rooms')
+        .from('games.wavelength_rooms')
         .update({ players: updatedPlayers })
         .eq('code', code.toUpperCase())
         .select()
@@ -242,7 +242,7 @@ export function useWavelengthRoom() {
     const firstPsychic = players[0]
 
     const { error: updateError } = await supabase
-      .from('wavelength_rooms')
+      .from('games.wavelength_rooms')
       .update({
         phase: 'psychic',
         current_psychic: firstPsychic,
@@ -262,7 +262,7 @@ export function useWavelengthRoom() {
     if (!room || !isPsychic) return
 
     const { error: updateError } = await supabase
-      .from('wavelength_rooms')
+      .from('games.wavelength_rooms')
       .update({
         clue: clue,
         phase: 'guessing'
@@ -277,7 +277,7 @@ export function useWavelengthRoom() {
     if (!room || isPsychic) return
 
     const { error: updateError } = await supabase
-      .from('wavelength_rooms')
+      .from('games.wavelength_rooms')
       .update({
         guess: guess,
         phase: 'reveal'
@@ -307,7 +307,7 @@ export function useWavelengthRoom() {
     // Check if game should end (each player was psychic once)
     if (isEndOfRound) {
       const { error: updateError } = await supabase
-        .from('wavelength_rooms')
+        .from('games.wavelength_rooms')
         .update({
           phase: 'end',
           team_score: newTeamScore,
@@ -325,7 +325,7 @@ export function useWavelengthRoom() {
     const nextPsychic = players[nextPsychicIndex]
 
     const { error: updateError } = await supabase
-      .from('wavelength_rooms')
+      .from('games.wavelength_rooms')
       .update({
         phase: 'psychic',
         round: newRound,
@@ -351,7 +351,7 @@ export function useWavelengthRoom() {
     const target = Math.floor(Math.random() * 101)
 
     const { error: updateError } = await supabase
-      .from('wavelength_rooms')
+      .from('games.wavelength_rooms')
       .update({
         phase: 'psychic',
         round: 1,
@@ -377,7 +377,7 @@ export function useWavelengthRoom() {
       if (updatedPlayers.length === 0) {
         // Delete room if last player
         await supabase
-          .from('wavelength_rooms')
+          .from('games.wavelength_rooms')
           .delete()
           .eq('code', room.code)
       } else {
@@ -390,7 +390,7 @@ export function useWavelengthRoom() {
         }
 
         await supabase
-          .from('wavelength_rooms')
+          .from('games.wavelength_rooms')
           .update(updates)
           .eq('code', room.code)
       }

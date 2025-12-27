@@ -95,7 +95,7 @@ export function useRoom() {
         'postgres_changes',
         {
           event: '*',
-          schema: 'public',
+          schema: 'games',
           table: 'rooms',
           filter: `code=eq.${room.code}`
         },
@@ -128,7 +128,7 @@ export function useRoom() {
     setLoading(true)
     try {
       const { data: existingRoom, error: fetchError } = await supabase
-        .from('rooms')
+        .from('games.rooms')
         .select()
         .eq('code', code)
         .single()
@@ -183,7 +183,7 @@ export function useRoom() {
       }
 
       const { data, error: supabaseError } = await supabase
-        .from('rooms')
+        .from('games.rooms')
         .insert(newRoom)
         .select()
         .single()
@@ -213,7 +213,7 @@ export function useRoom() {
     try {
       // First fetch the room
       const { data: existingRoom, error: fetchError } = await supabase
-        .from('rooms')
+        .from('games.rooms')
         .select()
         .eq('code', code.toUpperCase())
         .single()
@@ -240,7 +240,7 @@ export function useRoom() {
       ]
 
       const { data, error: updateError } = await supabase
-        .from('rooms')
+        .from('games.rooms')
         .update({ players: updatedPlayers })
         .eq('code', code.toUpperCase())
         .select()
@@ -268,7 +268,7 @@ export function useRoom() {
     if (!room || !isHost) return
 
     const { error: updateError } = await supabase
-      .from('rooms')
+      .from('games.rooms')
       .update({ category })
       .eq('code', room.code)
 
@@ -280,7 +280,7 @@ export function useRoom() {
     if (!room || !isHost) return
 
     const { error: updateError } = await supabase
-      .from('rooms')
+      .from('games.rooms')
       .update({ mode })
       .eq('code', room.code)
 
@@ -296,7 +296,7 @@ export function useRoom() {
     const playersReset = playersWithNumbers.map(p => ({ ...p, slot: null }))
 
     const { error: updateError } = await supabase
-      .from('rooms')
+      .from('games.rooms')
       .update({
         players: playersReset,
         phase: 'playing'
@@ -321,7 +321,7 @@ export function useRoom() {
     )
 
     const { error: updateError } = await supabase
-      .from('rooms')
+      .from('games.rooms')
       .update({ players: updatedPlayers })
       .eq('code', room.code)
 
@@ -352,7 +352,7 @@ export function useRoom() {
     }
 
     const { error: updateError } = await supabase
-      .from('rooms')
+      .from('games.rooms')
       .update({ players: updatedPlayers })
       .eq('code', room.code)
 
@@ -364,7 +364,7 @@ export function useRoom() {
     if (!room || !isHost) return
 
     const { error: updateError } = await supabase
-      .from('rooms')
+      .from('games.rooms')
       .update({ phase: 'revealed' })
       .eq('code', room.code)
 
@@ -384,7 +384,7 @@ export function useRoom() {
     }))
 
     const { error: updateError } = await supabase
-      .from('rooms')
+      .from('games.rooms')
       .update({
         players: resetPlayers,
         round: room.round + 1,

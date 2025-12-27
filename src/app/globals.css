@@ -6,6 +6,11 @@
   padding: 0;
 }
 
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
 :root {
   /* Core palette - dark purple theme */
   --bg-base: #0c0a0f;
@@ -43,7 +48,7 @@
   --radius-xl: 24px;
 }
 
-html, body, #root {
+html, body {
   height: 100%;
   width: 100%;
 }
@@ -1399,6 +1404,98 @@ h3 {
   font-family: 'Space Mono', monospace;
   font-size: 0.8rem;
   color: var(--text-muted);
+}
+
+/* ============================================
+   AUTH SECTION (in Profile Modal)
+   ============================================ */
+
+.auth-section {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+
+.auth-section h3 {
+  text-align: center;
+  margin-bottom: 16px;
+  color: var(--text-primary);
+  text-transform: none;
+  font-size: 1rem;
+}
+
+.auth-pitch {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  margin-bottom: 20px;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.auth-form input {
+  width: 100%;
+  padding: 12px 14px;
+  font-family: inherit;
+  font-size: 1rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.auth-form input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-subtle);
+}
+
+.auth-form input::placeholder {
+  color: var(--text-muted);
+}
+
+.auth-error {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.auth-help {
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 16px;
+}
+
+.auth-help a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.auth-help a:hover {
+  text-decoration: underline;
+}
+
+.signed-in-info {
+  text-align: center;
+}
+
+.signed-in-email {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  margin-bottom: 16px;
+}
+
+.signed-in-email strong {
+  color: var(--text-primary);
 }
 
 /* ============================================
