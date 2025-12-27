@@ -14,6 +14,7 @@ function generateRoomCode() {
 
 // Get player ID from localStorage
 function getPlayerId() {
+  if (typeof window === 'undefined') return ''
   let id = localStorage.getItem('playerId')
   if (!id) {
     id = crypto.randomUUID()
@@ -24,21 +25,25 @@ function getPlayerId() {
 
 // Get saved player name
 function getSavedName() {
+  if (typeof window === 'undefined') return ''
   return localStorage.getItem('playerName') || ''
 }
 
 // Save player name
 function savePlayerName(name) {
+  if (typeof window === 'undefined') return
   localStorage.setItem('playerName', name)
 }
 
 // Get saved wavelength room code
 function getSavedRoomCode() {
+  if (typeof window === 'undefined') return null
   return localStorage.getItem('wavelengthRoomCode') || null
 }
 
 // Save wavelength room code
 function saveRoomCode(code) {
+  if (typeof window === 'undefined') return
   if (code) {
     localStorage.setItem('wavelengthRoomCode', code)
   } else {

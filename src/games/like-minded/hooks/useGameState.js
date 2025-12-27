@@ -42,6 +42,7 @@ const initialState = {
 
 // Load saved game from localStorage
 function loadSavedGame() {
+  if (typeof window === 'undefined') return initialState
   try {
     const saved = localStorage.getItem(STORAGE_KEY)
     if (saved) {
@@ -66,6 +67,7 @@ function loadSavedGame() {
 
 // Save game to localStorage
 function saveGame(state) {
+  if (typeof window === 'undefined') return
   try {
     if (state.phase !== 'setup') {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
@@ -77,6 +79,7 @@ function saveGame(state) {
 
 // Clear saved game
 function clearSavedGame() {
+  if (typeof window === 'undefined') return
   try {
     localStorage.removeItem(STORAGE_KEY)
   } catch (e) {

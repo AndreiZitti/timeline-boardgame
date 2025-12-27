@@ -4,6 +4,7 @@ import { generateRoomCode, assignNumbers } from '../../../lib/random'
 
 // Get or create player ID from localStorage
 function getPlayerId() {
+  if (typeof window === 'undefined') return ''
   let id = localStorage.getItem('playerId')
   if (!id) {
     id = crypto.randomUUID()
@@ -14,16 +15,19 @@ function getPlayerId() {
 
 // Get saved player name from localStorage
 function getSavedName() {
+  if (typeof window === 'undefined') return ''
   return localStorage.getItem('playerName') || ''
 }
 
 // Save player name to localStorage
 function savePlayerName(name) {
+  if (typeof window === 'undefined') return
   localStorage.setItem('playerName', name)
 }
 
 // Get profile stats from localStorage
 function getProfileStats() {
+  if (typeof window === 'undefined') return { gamesPlayed: 0, gamesHosted: 0 }
   return {
     gamesPlayed: parseInt(localStorage.getItem('gamesPlayed') || '0', 10),
     gamesHosted: parseInt(localStorage.getItem('gamesHosted') || '0', 10)
@@ -32,23 +36,27 @@ function getProfileStats() {
 
 // Increment games played counter
 function incrementGamesPlayed() {
+  if (typeof window === 'undefined') return
   const current = parseInt(localStorage.getItem('gamesPlayed') || '0', 10)
   localStorage.setItem('gamesPlayed', (current + 1).toString())
 }
 
 // Increment games hosted counter
 function incrementGamesHosted() {
+  if (typeof window === 'undefined') return
   const current = parseInt(localStorage.getItem('gamesHosted') || '0', 10)
   localStorage.setItem('gamesHosted', (current + 1).toString())
 }
 
 // Get saved room code from localStorage
 function getSavedRoomCode() {
+  if (typeof window === 'undefined') return null
   return localStorage.getItem('roomCode') || null
 }
 
 // Save room code to localStorage
 function saveRoomCode(code) {
+  if (typeof window === 'undefined') return
   if (code) {
     localStorage.setItem('roomCode', code)
   } else {
@@ -58,12 +66,14 @@ function saveRoomCode(code) {
 
 // Get room code from URL params
 function getRoomCodeFromURL() {
+  if (typeof window === 'undefined') return null
   const params = new URLSearchParams(window.location.search)
   return params.get('room')?.toUpperCase() || null
 }
 
 // Update URL with room code
 function updateURLWithRoomCode(code) {
+  if (typeof window === 'undefined') return
   const url = new URL(window.location.href)
   if (code) {
     url.searchParams.set('room', code)
