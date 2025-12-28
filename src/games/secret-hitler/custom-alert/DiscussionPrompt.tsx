@@ -4,6 +4,7 @@ import ButtonPrompt from "./ButtonPrompt";
 
 type DiscussionPromptProps = {
   isVIP: boolean;
+  isPresident: boolean;
   sendWSCommand: SendWSCommand;
   onConfirm: () => void;
 };
@@ -20,7 +21,9 @@ class DiscussionPrompt extends Component<DiscussionPromptProps> {
   }
 
   render() {
-    const { isVIP } = this.props;
+    const { isVIP, isPresident } = this.props;
+    // President or VIP can end discussion
+    const canEndDiscussion = isVIP || isPresident;
 
     return (
       <ButtonPrompt
@@ -39,17 +42,17 @@ class DiscussionPrompt extends Component<DiscussionPromptProps> {
           );
         }}
         renderFooter={() => {
-          if (!isVIP) {
+          if (!canEndDiscussion) {
             return (
               <p style={{ marginTop: "1em", opacity: 0.7 }}>
-                Waiting for the host to continue...
+                Waiting for the president to continue...
               </p>
             );
           }
           return null;
         }}
-        buttonText={isVIP ? "END DISCUSSION" : "WAITING..."}
-        buttonDisabled={!isVIP}
+        buttonText={canEndDiscussion ? "CONTINUE" : "WAITING..."}
+        buttonDisabled={!canEndDiscussion}
         buttonOnClick={this.onClickEndDiscussion}
       />
     );

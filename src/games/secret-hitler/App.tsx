@@ -1313,10 +1313,11 @@ class App extends Component<AppProps, AppState> {
           break;
 
         case STATE_DISCUSSION:
-          // Host-controlled discussion phase
+          // Discussion phase - president or VIP can end it
           this.queueAlert(
             <DiscussionPrompt
               isVIP={isVIP}
+              isPresident={isPresident}
               sendWSCommand={this.sendWSCommand}
               onConfirm={this.hideAlertAndFinish}
             />,

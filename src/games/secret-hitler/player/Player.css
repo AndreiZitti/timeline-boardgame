@@ -65,9 +65,9 @@
 
 #player-identity-icon {
     position:absolute;
-    top: 75%;
+    top: 82%;
     left: 8%;
-    width: 28%;
+    width: 22%;
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
@@ -92,18 +92,19 @@
 
 #player-identity-label {
     position:absolute;
-    top: 69%;
-    left: 36%;
-    width: 50%;
+    top: 82%;
+    left: 30%;
+    width: 62%;
     height: 12%;
     /*noinspection CssInvalidFunction*/
-    font-size: min(2.3vh, 3vmin);
+    font-size: min(2vh, 2.5vmin);
     color: var(--textColorHighlight);
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
     user-select: none;
     font-family: var(--textFont);
+    margin: 0;
 }
 
 #player-identity-label.liberal-text {

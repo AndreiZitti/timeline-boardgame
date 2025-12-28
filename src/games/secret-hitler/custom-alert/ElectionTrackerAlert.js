@@ -13,11 +13,25 @@ class ElectionTrackerAlert extends Component {
     constructor(props) {
         super(props);
         let initialPos = "et-position-" + (this.props.trackerPosition - 1);
-        let moveClass = "et-moveto-" + (this.props.trackerPosition);
         this.state = {
-            trackerClass: initialPos
+            trackerClass: initialPos,
+            moveClass: "et-moveto-" + (this.props.trackerPosition)
         };
-        setTimeout(()=>this.setState({trackerClass:moveClass}), 500);
+        this.animationTimeout = null;
+    }
+
+    componentDidMount() {
+        // Start animation after component is mounted
+        this.animationTimeout = setTimeout(() => {
+            this.setState({ trackerClass: this.state.moveClass });
+        }, 500);
+    }
+
+    componentWillUnmount() {
+        // Clear timeout to prevent setState on unmounted component
+        if (this.animationTimeout) {
+            clearTimeout(this.animationTimeout);
+        }
     }
 
     render() {

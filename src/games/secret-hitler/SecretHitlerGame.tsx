@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import dynamic from "next/dynamic";
 import Cookies from "js-cookie";
 
@@ -15,6 +15,9 @@ import { HomeScreen, CreateRoomScreen, JoinRoomScreen, ArtStyle } from "./screen
 
 // Import server constants from existing constants file
 import { SERVER_ADDRESS_HTTP, NEW_LOBBY, CHECK_LOGIN } from "./constants";
+
+// Import bot manager
+import { BotManager, disconnectBots } from "./BotManager";
 
 interface SecretHitlerGameProps {
   onBack: () => void;
@@ -43,6 +46,9 @@ export function SecretHitlerGame({ onBack }: SecretHitlerGameProps) {
   const [savedName, setSavedName] = useState("");
   const [initialCode, setInitialCode] = useState("");
 
+  // Bot manager reference
+  const botManagerRef = useRef<BotManager | null>(null);
+
   // Game session data (passed to App when entering game)
   const [gameSession, setGameSession] = useState<{
     name: string;
@@ -69,7 +75,7 @@ export function SecretHitlerGame({ onBack }: SecretHitlerGameProps) {
   }, []);
 
   // Create a new lobby
-  const handleCreateRoom = async (name: string, artStyle: ArtStyle) => {
+  const handleCreateRoom = async (name: string, artStyle: ArtStyle, fillWithBots: boolean, botCount: number) => {
     setLoading(true);
     setError("");
 
@@ -85,6 +91,26 @@ export function SecretHitlerGame({ onBack }: SecretHitlerGameProps) {
         // Start game session
         setGameSession({ name, lobby: lobbyCode, artStyle });
         setScreen("game");
+
+        // Add bots if requested
+        if (fillWithBots && botCount > 0) {
+          // Small delay to let the human player connect first
+          setTimeout(async () => {
+            try {
+              // Disconnect any existing bots
+              if (botManagerRef.current) {
+                botManagerRef.current.disconnect();
+              }
+
+              // Create new bot manager and add bots
+              botManagerRef.current = new BotManager();
+              await botManagerRef.current.addBots(lobbyCode, name, botCount);
+              console.log(`[SecretHitlerGame] Added ${botCount} bots to lobby ${lobbyCode}`);
+            } catch (botErr) {
+              console.error("[SecretHitlerGame] Failed to add bots:", botErr);
+            }
+          }, 1500);
+        }
       } else {
         setError("Failed to create room. Please try again.");
       }
@@ -133,6 +159,11 @@ export function SecretHitlerGame({ onBack }: SecretHitlerGameProps) {
 
   // Handle leaving the game and returning to home
   const handleLeaveGame = () => {
+    // Disconnect bots when leaving
+    if (botManagerRef.current) {
+      botManagerRef.current.disconnect();
+      botManagerRef.current = null;
+    }
     setGameSession(null);
     setScreen("home");
     setError("");

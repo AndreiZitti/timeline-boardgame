@@ -5,7 +5,7 @@ export type ArtStyle = "original" | "voldemort";
 
 interface CreateRoomScreenProps {
   onBack: () => void;
-  onCreateRoom: (name: string, artStyle: ArtStyle) => void;
+  onCreateRoom: (name: string, artStyle: ArtStyle, fillWithBots: boolean, botCount: number) => void;
   loading?: boolean;
   error?: string;
   savedName?: string;
@@ -20,11 +20,13 @@ export function CreateRoomScreen({
 }: CreateRoomScreenProps) {
   const [name, setName] = useState(savedName);
   const [artStyle, setArtStyle] = useState<ArtStyle>("original");
+  const [fillWithBots, setFillWithBots] = useState(true);
+  const [botCount, setBotCount] = useState(4);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (name.trim() && !loading) {
-      onCreateRoom(name.trim(), artStyle);
+      onCreateRoom(name.trim(), artStyle, fillWithBots, botCount);
     }
   };
 
@@ -84,6 +86,35 @@ export function CreateRoomScreen({
               </div>
             </div>
           </div>
+        </div>
+
+        <div className="bot-settings-section">
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={fillWithBots}
+              onChange={(e) => setFillWithBots(e.target.checked)}
+            />
+            <span>Fill with Bots (for testing)</span>
+          </label>
+          {fillWithBots && (
+            <div className="bot-count-selector">
+              <label>Number of Bots:</label>
+              <div className="bot-count-buttons">
+                {[4, 5, 6, 7, 8, 9].map((count) => (
+                  <button
+                    key={count}
+                    type="button"
+                    className={`bot-count-btn ${botCount === count ? "selected" : ""}`}
+                    onClick={() => setBotCount(count)}
+                  >
+                    {count}
+                  </button>
+                ))}
+              </div>
+              <p className="bot-hint">Total players: {botCount + 1} (you + {botCount} bots)</p>
+            </div>
+          )}
         </div>
 
         {error && <p className="error-message">{error}</p>}
