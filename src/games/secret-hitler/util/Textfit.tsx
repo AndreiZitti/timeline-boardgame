@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useEffect, useState, ReactNode } from "react";
+import React, { useRef, useEffect, useState, ReactNode, useCallback } from "react";
 
 interface TextfitProps {
   children: ReactNode;
@@ -29,8 +29,9 @@ export function Textfit({
   const containerRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLSpanElement>(null);
   const [fontSize, setFontSize] = useState(max);
+  const [recalcTrigger, setRecalcTrigger] = useState(0);
 
-  useEffect(() => {
+  const calculateFontSize = useCallback(() => {
     const container = containerRef.current;
     const text = textRef.current;
     if (!container || !text) return;
@@ -59,7 +60,44 @@ export function Textfit({
     }
 
     setFontSize(optimal);
-  }, [children, min, max, mode]);
+  }, [min, max, mode]);
+
+  // Main calculation effect
+  useEffect(() => {
+    calculateFontSize();
+  }, [children, calculateFontSize, recalcTrigger]);
+
+  // Watch for container resize (handles layout changes after dynamic import)
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const resizeObserver = new ResizeObserver(() => {
+      calculateFontSize();
+    });
+
+    resizeObserver.observe(container);
+    return () => resizeObserver.disconnect();
+  }, [calculateFontSize]);
+
+  // Recalculate after fonts load
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+
+    // Check if fonts are already loaded
+    if (document.fonts.status === "loaded") {
+      // Still trigger a recalc after a small delay to ensure layout is stable
+      const timer = setTimeout(() => setRecalcTrigger((t) => t + 1), 100);
+      return () => clearTimeout(timer);
+    }
+
+    // Wait for fonts to load
+    const handleFontsLoaded = () => {
+      setRecalcTrigger((t) => t + 1);
+    };
+
+    document.fonts.ready.then(handleFontsLoaded);
+  }, []);
 
   return (
     <div

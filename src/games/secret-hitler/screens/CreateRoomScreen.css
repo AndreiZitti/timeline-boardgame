@@ -1,0 +1,145 @@
+/* CreateRoomScreen styles */
+
+.create-room-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 500px;
+  margin-top: 20px;
+}
+
+.create-room-form .form-group {
+  position: relative;
+  width: 100%;
+  max-width: 300px;
+}
+
+.create-room-form .char-count {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  color: var(--neutral-text-muted);
+  pointer-events: none;
+}
+
+/* Art Style Section */
+.art-style-section {
+  width: 100%;
+  margin: 24px 0;
+}
+
+.art-style-section > label {
+  display: block;
+  font-family: var(--font-body);
+  font-size: calc(10px + 0.5vmin);
+  color: var(--neutral-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.art-style-options {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.art-style-card {
+  position: relative;
+  width: 180px;
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 3px solid transparent;
+  background: var(--neutral-bg-card);
+}
+
+.art-style-card:hover {
+  transform: translateY(-4px);
+}
+
+.art-style-card.selected {
+  border-color: var(--neutral-accent);
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+}
+
+.art-style-preview {
+  height: 100px;
+  width: 100%;
+}
+
+.original-preview {
+  background: linear-gradient(135deg, #e05b2b 0%, #b4431a 50%, #4d4945 100%);
+}
+
+.voldemort-preview {
+  background: linear-gradient(135deg, #1a472a 0%, #0d2818 50%, #1a1a2e 100%);
+  filter: grayscale(50%);
+}
+
+.art-style-info {
+  padding: 12px;
+  text-align: center;
+}
+
+.art-style-info h3 {
+  font-family: var(--font-display);
+  font-size: calc(12px + 0.5vmin);
+  color: var(--neutral-text);
+  margin: 0 0 4px 0;
+  font-weight: normal;
+}
+
+.art-style-info p {
+  font-size: calc(10px + 0.3vmin);
+  color: var(--neutral-text-muted);
+  margin: 0;
+}
+
+.selected-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: var(--neutral-accent);
+  color: white;
+  font-size: 10px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-family: var(--font-body);
+  font-weight: 600;
+}
+
+.coming-soon-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.coming-soon-overlay span {
+  font-family: var(--font-display);
+  font-size: calc(12px + 0.5vmin);
+  color: white;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 8px 16px;
+  border-radius: 6px;
+}
+
+.art-style-card.voldemort {
+  cursor: not-allowed;
+}
+
+.art-style-card.voldemort:hover {
+  transform: none;
+}

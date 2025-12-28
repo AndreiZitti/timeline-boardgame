@@ -1,0 +1,148 @@
+/* Original Theme - Classic Orange/Brown */
+/* Applied to lobby and game screens when "Original" art style is selected */
+
+.theme-original {
+  /* Primary colors */
+  --theme-primary: #e05b2b;
+  --theme-primary-hover: #e67a53;
+  --theme-primary-shadow: #b4431a;
+
+  /* Background colors */
+  --theme-bg: #4d4945;
+  --theme-bg-dark: #372e25;
+  --theme-bg-card: #3d3a36;
+
+  /* Text colors */
+  --theme-text: #ffffff;
+  --theme-text-muted: #bbbbbb;
+  --theme-text-highlight: #e05b2b;
+  --theme-text-liberal: #5a9ba6;
+
+  /* Button colors */
+  --theme-btn-bg: #e05b2b;
+  --theme-btn-hover: #e67a53;
+  --theme-btn-shadow: #b4431a;
+  --theme-btn-disabled: #928079;
+  --theme-btn-disabled-shadow: #766058;
+
+  /* Alt button (liberal blue) */
+  --theme-btn-alt-bg: #5a9ba6;
+  --theme-btn-alt-hover: #7abcca;
+  --theme-btn-alt-shadow: #386F8B;
+
+  /* UI elements */
+  --theme-alert-bg: #141414;
+  --theme-alert-overlay: 0.8;
+  --theme-status-bar: #141414;
+  --theme-selection-hover: rgba(246, 181, 63, 1.00);
+  --theme-selection-selected: rgba(228, 105, 73, 1.00);
+
+  /* Apply theme background */
+  background-color: var(--theme-bg);
+  color: var(--theme-text);
+}
+
+/* Themed screen base */
+.theme-original.secret-hitler-themed {
+  min-height: 100vh;
+  font-family: 'Montserrat', sans-serif;
+}
+
+/* Themed typography */
+.theme-original h1,
+.theme-original h2 {
+  font-family: 'Germania One', cursive;
+  color: var(--theme-text);
+}
+
+.theme-original h2 {
+  font-size: calc(12px + 2vmin);
+  font-weight: normal;
+  margin: 0.5em 0;
+}
+
+.theme-original p {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-size: calc(12px + 1vmin);
+  color: var(--theme-text-muted);
+}
+
+.theme-original .highlight {
+  color: var(--theme-text-highlight);
+}
+
+.theme-original .highlight-blue {
+  color: var(--theme-text-liberal);
+}
+
+/* Themed buttons */
+.theme-original button {
+  background: var(--theme-btn-bg);
+  box-shadow: 0 5px 0 var(--theme-btn-shadow);
+  font-family: 'Germania One', cursive;
+  font-size: calc(6px + 4vmin);
+  color: var(--theme-text);
+  padding: 10px 25px;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.theme-original button:hover,
+.theme-original button:focus {
+  background: var(--theme-btn-hover);
+}
+
+.theme-original button:active {
+  transform: translateY(3px);
+  box-shadow: 0 2px 0 var(--theme-btn-shadow);
+}
+
+.theme-original button:disabled {
+  background: var(--theme-btn-disabled);
+  box-shadow: 0 5px 0 var(--theme-btn-disabled-shadow);
+  cursor: not-allowed;
+}
+
+/* Themed inputs */
+.theme-original input {
+  font-family: 'Montserrat', sans-serif;
+  font-size: calc(4px + 3vmin);
+  color: #69645e;
+  background: white;
+  border: 2px solid transparent;
+  border-radius: 5px;
+  padding: 5px;
+  outline: none;
+}
+
+.theme-original textarea {
+  font-family: 'Montserrat', sans-serif;
+  font-size: calc(2px + 2vmin);
+  color: #69645e;
+  background: white;
+  border: 2px solid transparent;
+  border-radius: 5px;
+  padding: calc(5px + 1.5vmin) 5px 5px;
+  outline: none;
+  resize: none;
+}
+
+/* Links */
+.theme-original a {
+  font-family: 'Montserrat', sans-serif;
+  font-size: calc(12px + 1vmin);
+  color: var(--theme-btn-hover);
+}
+
+/* Snackbar */
+.theme-original #snackbar {
+  background-color: var(--theme-alert-bg);
+  color: var(--theme-text);
+  font-family: 'Montserrat', sans-serif;
+  border-radius: 10px;
+  padding: 16px;
+}

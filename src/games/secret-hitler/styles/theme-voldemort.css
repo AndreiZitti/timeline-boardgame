@@ -1,0 +1,38 @@
+/* Secret Voldemort Theme - Coming Soon */
+/* This theme will be used when "Secret Voldemort" art style is selected */
+/* For now, it's a placeholder that mirrors the original theme */
+
+.theme-voldemort {
+  /* Primary colors - Dark green/Slytherin inspired */
+  --theme-primary: #1a472a;
+  --theme-primary-hover: #2d5a3e;
+  --theme-primary-shadow: #0d2818;
+
+  /* Background colors */
+  --theme-bg: #1a1a2e;
+  --theme-bg-dark: #0f0f1a;
+  --theme-bg-card: #252540;
+
+  /* Text colors */
+  --theme-text: #c0c0c0;
+  --theme-text-muted: #888888;
+  --theme-text-highlight: #50c878;
+  --theme-text-secondary: #9370db;
+
+  /* Button colors */
+  --theme-btn-bg: #1a472a;
+  --theme-btn-hover: #2d5a3e;
+  --theme-btn-shadow: #0d2818;
+  --theme-btn-disabled: #4a4a4a;
+  --theme-btn-disabled-shadow: #2a2a2a;
+
+  /* UI elements */
+  --theme-alert-bg: #0a0a0a;
+  --theme-status-bar: #0a0a0a;
+
+  /* Apply theme background */
+  background-color: var(--theme-bg);
+  color: var(--theme-text);
+}
+
+/* TODO: Add full Voldemort theme styling when art assets are ready */

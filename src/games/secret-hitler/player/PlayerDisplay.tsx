@@ -17,7 +17,7 @@ import {
 } from "../constants";
 import "./PlayerDisplay.css";
 import { GameState, Role } from "../types";
-import { doesHitlerKnowFascists, isVictoryState } from "../utils";
+import { doesHitlerKnowFascists, isVictoryState } from "../util/gameHelpers";
 
 // <editor-fold desc="Player Filters">
 

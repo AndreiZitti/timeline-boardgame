@@ -1,0 +1,279 @@
+/* Base neutral styles for Secret Hitler - matches other games */
+
+/* Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Germania+One&family=Montserrat:wght@300;400;500;600;700&display=swap');
+
+:root {
+  /* Neutral colors for home/create/join screens */
+  --neutral-bg: #1a1a2e;
+  --neutral-bg-light: #252542;
+  --neutral-bg-card: #2d2d4a;
+  --neutral-text: #e5e7eb;
+  --neutral-text-muted: #9ca3af;
+  --neutral-border: #374151;
+  --neutral-accent: #6366f1;
+  --neutral-accent-hover: #818cf8;
+
+  /* Button colors */
+  --btn-primary-bg: #6366f1;
+  --btn-primary-hover: #818cf8;
+  --btn-primary-shadow: #4338ca;
+  --btn-secondary-bg: #374151;
+  --btn-secondary-hover: #4b5563;
+  --btn-secondary-shadow: #1f2937;
+  --btn-disabled-bg: #4b5563;
+  --btn-disabled-shadow: #374151;
+
+  /* Typography */
+  --font-display: 'Germania One', cursive;
+  --font-body: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* Base reset for secret-hitler screens */
+.secret-hitler-screen {
+  min-height: 100vh;
+  background: var(--neutral-bg);
+  color: var(--neutral-text);
+  font-family: var(--font-body);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+/* Typography */
+.secret-hitler-screen h1 {
+  font-family: var(--font-display);
+  font-size: calc(24px + 4vmin);
+  font-weight: normal;
+  color: var(--neutral-text);
+  margin: 0.5em 0;
+  text-align: center;
+}
+
+.secret-hitler-screen h2 {
+  font-family: var(--font-display);
+  font-size: calc(16px + 2vmin);
+  font-weight: normal;
+  color: var(--neutral-text);
+  margin: 0.5em 0;
+}
+
+.secret-hitler-screen p {
+  font-family: var(--font-body);
+  font-size: calc(12px + 0.5vmin);
+  color: var(--neutral-text-muted);
+  line-height: 1.6;
+  margin: 0.5em 0;
+}
+
+.secret-hitler-screen .subtitle {
+  font-size: calc(14px + 1vmin);
+  color: var(--neutral-text-muted);
+  margin-bottom: 1.5em;
+}
+
+/* Buttons */
+.secret-hitler-screen button,
+.secret-hitler-screen .btn {
+  font-family: var(--font-display);
+  font-size: calc(12px + 2vmin);
+  color: white;
+  padding: 12px 32px;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.secret-hitler-screen .btn-primary {
+  background: var(--btn-primary-bg);
+  box-shadow: 0 4px 0 var(--btn-primary-shadow);
+}
+
+.secret-hitler-screen .btn-primary:hover {
+  background: var(--btn-primary-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 var(--btn-primary-shadow);
+}
+
+.secret-hitler-screen .btn-primary:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 var(--btn-primary-shadow);
+}
+
+.secret-hitler-screen .btn-secondary {
+  background: var(--btn-secondary-bg);
+  box-shadow: 0 4px 0 var(--btn-secondary-shadow);
+}
+
+.secret-hitler-screen .btn-secondary:hover {
+  background: var(--btn-secondary-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 var(--btn-secondary-shadow);
+}
+
+.secret-hitler-screen .btn-secondary:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 var(--btn-secondary-shadow);
+}
+
+.secret-hitler-screen button:disabled,
+.secret-hitler-screen .btn:disabled {
+  background: var(--btn-disabled-bg);
+  box-shadow: 0 4px 0 var(--btn-disabled-shadow);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* Back button */
+.secret-hitler-screen .btn-back {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  font-family: var(--font-body);
+  font-size: calc(10px + 1vmin);
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--neutral-text);
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.secret-hitler-screen .btn-back:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: none;
+  box-shadow: none;
+}
+
+/* Button group */
+.secret-hitler-screen .button-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 20px;
+  width: 100%;
+  max-width: 300px;
+}
+
+.secret-hitler-screen .button-group button {
+  width: 100%;
+}
+
+/* Input fields */
+.secret-hitler-screen input[type="text"],
+.secret-hitler-screen input[type="password"] {
+  font-family: var(--font-body);
+  font-size: calc(12px + 1vmin);
+  padding: 12px 16px;
+  border: 2px solid var(--neutral-border);
+  border-radius: 8px;
+  background: var(--neutral-bg-card);
+  color: var(--neutral-text);
+  outline: none;
+  width: 100%;
+  max-width: 300px;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease;
+}
+
+.secret-hitler-screen input:focus {
+  border-color: var(--neutral-accent);
+}
+
+.secret-hitler-screen input::placeholder {
+  color: var(--neutral-text-muted);
+}
+
+/* Form groups */
+.secret-hitler-screen .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+  width: 100%;
+  max-width: 300px;
+}
+
+.secret-hitler-screen .form-group label {
+  font-family: var(--font-body);
+  font-size: calc(10px + 0.5vmin);
+  color: var(--neutral-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Cards/Containers */
+.secret-hitler-screen .card {
+  background: var(--neutral-bg-card);
+  border-radius: 12px;
+  padding: 24px;
+  width: 100%;
+  max-width: 400px;
+  box-sizing: border-box;
+}
+
+/* How to play section */
+.secret-hitler-screen .how-to-play {
+  background: var(--neutral-bg-light);
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin: 20px 0;
+  max-width: 500px;
+  text-align: left;
+}
+
+.secret-hitler-screen .how-to-play ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.secret-hitler-screen .how-to-play li {
+  font-size: calc(11px + 0.5vmin);
+  color: var(--neutral-text-muted);
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+
+/* Credits */
+.secret-hitler-screen .credits {
+  margin-top: auto;
+  padding-top: 30px;
+  text-align: center;
+}
+
+.secret-hitler-screen .credits p {
+  font-size: calc(10px + 0.3vmin);
+  color: var(--neutral-text-muted);
+  opacity: 0.7;
+}
+
+.secret-hitler-screen .credits a {
+  color: var(--neutral-accent);
+  text-decoration: none;
+}
+
+.secret-hitler-screen .credits a:hover {
+  text-decoration: underline;
+}
+
+/* Error messages */
+.secret-hitler-screen .error-message {
+  color: #ef4444;
+  font-size: calc(10px + 0.5vmin);
+  margin: 8px 0;
+}
+
+/* Divider */
+.secret-hitler-screen .divider {
+  width: 80%;
+  max-width: 300px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--neutral-border), transparent);
+  margin: 24px 0;
+}

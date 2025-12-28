@@ -1,8 +1,8 @@
 import React, { Component } from "react";
 import "./App.css";
 import "./Lobby.css";
-import "./Login.css";
 import "./fonts.css";
+import "./styles/theme-original.css";
 import MaxLengthTextField from "./util/MaxLengthTextField";
 import CustomAlert from "./custom-alert/CustomAlert";
 import RoleAlert from "./custom-alert/RoleAlert";
@@ -85,7 +85,6 @@ import IconSelection from "./custom-alert/IconSelection";
 import HelmetMetaData from "./util/HelmetMetaData";
 import { defaultPortrait } from "./assets";
 import Player from "./player/Player";
-import LoginPageContent from "./LoginPageContent";
 import Cookies from "js-cookie";
 import {
   GameState,
@@ -203,6 +202,8 @@ const defaultAppState: AppState = {
 
 interface AppProps {
   onBack?: () => void;
+  initialName?: string;
+  initialLobby?: string;
 }
 
 class App extends Component<AppProps, AppState> {
@@ -217,17 +218,24 @@ class App extends Component<AppProps, AppState> {
   gameOver: boolean = false;
 
   // noinspection DuplicatedCode
-  constructor(props: any) {
+  constructor(props: AppProps) {
     super(props);
 
-    let name = Cookies.get(COOKIE_NAME) ? Cookies.get(COOKIE_NAME) : "";
-    let lobby = Cookies.get(COOKIE_LOBBY) ? Cookies.get(COOKIE_LOBBY) : "";
+    // Use props if provided, otherwise fall back to cookies
+    const name = props.initialName || Cookies.get(COOKIE_NAME) || "";
+    const lobby = props.initialLobby || Cookies.get(COOKIE_LOBBY) || "";
+
+    // If we have initial props, start directly in lobby mode
+    const initialPage = props.initialName && props.initialLobby ? PAGE.LOBBY : PAGE.LOGIN;
 
     this.state = {
       ...defaultAppState,
-      joinName: name || "",
-      joinLobby: lobby || "",
-      createLobbyName: name || "",
+      page: initialPage,
+      name: name,
+      lobby: lobby,
+      joinName: name,
+      joinLobby: lobby,
+      createLobbyName: name,
     };
 
     // These are necessary for handling class fields safely (ex: websocket)
@@ -251,6 +259,13 @@ class App extends Component<AppProps, AppState> {
     // Ping the server to wake it up if it's not currently being used
     // This reduces the delay users experience when starting lobbies
     fetch(SERVER_ADDRESS_HTTP + SERVER_PING);
+  }
+
+  componentDidMount() {
+    // Auto-connect to WebSocket if we have initial credentials
+    if (this.props.initialName && this.props.initialLobby) {
+      this.tryOpenWebSocket(this.props.initialName, this.props.initialLobby);
+    }
   }
 
   /////////// Server Communication
@@ -720,8 +735,6 @@ class App extends Component<AppProps, AppState> {
             CREATE LOBBY
           </button>
         </div>
-        <br />
-        <LoginPageContent />
       </div>
     );
   }
