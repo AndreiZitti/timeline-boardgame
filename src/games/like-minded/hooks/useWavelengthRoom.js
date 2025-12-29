@@ -141,7 +141,6 @@ export function useWavelengthRoom() {
       const newRoom = {
         code,
         phase: 'lobby',
-        round: 1,
         current_psychic: null,
         spectrum: null,
         target: null,
@@ -271,7 +270,7 @@ export function useWavelengthRoom() {
     if (updateError) setError(updateError.message)
   }, [room, isPsychic])
 
-  // Next round (host only)
+  // Continue to next psychic (host only)
   const nextRound = useCallback(async () => {
     if (!room || !isHost) return
 
@@ -284,12 +283,8 @@ export function useWavelengthRoom() {
     const currentPsychicIndex = players.indexOf(room.current_psychic)
     const nextPsychicIndex = (currentPsychicIndex + 1) % players.length
 
-    // Check if all players have been psychic (round complete)
-    const isEndOfRound = nextPsychicIndex === 0
-    const newRound = isEndOfRound ? room.round + 1 : room.round
-
-    // Check if game should end (each player was psychic once)
-    if (isEndOfRound) {
+    // Check if game should end (all players have been psychic once)
+    if (nextPsychicIndex === 0) {
       const { error: updateError } = await supabase
         .from('games.wavelength_rooms')
         .update({
@@ -312,7 +307,6 @@ export function useWavelengthRoom() {
       .from('games.wavelength_rooms')
       .update({
         phase: 'psychic',
-        round: newRound,
         current_psychic: nextPsychic,
         spectrum: spectrum,
         target: target,
@@ -338,7 +332,6 @@ export function useWavelengthRoom() {
       .from('games.wavelength_rooms')
       .update({
         phase: 'psychic',
-        round: 1,
         current_psychic: players[0],
         spectrum: spectrum,
         target: target,
@@ -385,12 +378,6 @@ export function useWavelengthRoom() {
     setError(null)
   }, [room, currentPlayerName, players])
 
-  // Update profile name
-  const updateProfileName = useCallback((name) => {
-    savePlayerName(name)
-    setSavedName(name)
-  }, [])
-
   return {
     room,
     loading,
@@ -408,10 +395,9 @@ export function useWavelengthRoom() {
     startGame,
     submitClue,
     lockInGuess,
-    nextRound,
+    nextPsychic: nextRound,  // Renamed for clarity
     playAgain,
     leaveRoom,
-    updateProfileName,
     setError
   }
 }

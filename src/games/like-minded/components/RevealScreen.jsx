@@ -18,7 +18,7 @@ export function RevealScreen({
   result,
   roundNumber,
   totalRounds,
-  playerScore,
+  teamScore,
   gameScore,
   onContinue
 }) {
@@ -49,8 +49,8 @@ export function RevealScreen({
       {/* Score display */}
       <div className="score-display">
         <div className="score-item you">
-          <span className="score-label">You</span>
-          <span className="score-value">{playerScore + result.playerPoints}</span>
+          <span className="score-label">Team</span>
+          <span className="score-value">{teamScore + result.teamPoints}</span>
         </div>
         <div className="score-divider">vs</div>
         <div className="score-item game">
@@ -135,7 +135,7 @@ export function RevealScreen({
             transition={{ delay: 0.3 }}
           >
             <button className="btn btn-primary" onClick={onContinue}>
-              {roundNumber < totalRounds ? 'Next Round' : 'See Results'}
+              {roundNumber < totalRounds ? 'Continue' : 'See Results'}
             </button>
           </motion.div>
         )}

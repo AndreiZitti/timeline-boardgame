@@ -8,18 +8,18 @@ export function calculateScore(targetPosition, guessPosition) {
   const distance = Math.abs(targetPosition - guessPosition)
 
   if (distance <= 5) {
-    return { playerPoints: 4, gamePoints: 0, zone: 'bullseye' }
+    return { teamPoints: 4, gamePoints: 0, zone: 'bullseye' }
   }
   if (distance <= 12) {
-    return { playerPoints: 3, gamePoints: 0, zone: 'close' }
+    return { teamPoints: 3, gamePoints: 0, zone: 'close' }
   }
   if (distance <= 20) {
-    return { playerPoints: 2, gamePoints: 0, zone: 'near' }
+    return { teamPoints: 2, gamePoints: 0, zone: 'near' }
   }
 
   // Game gets points based on how far off
   const gamePoints = Math.min(4, Math.ceil(distance / 20))
-  return { playerPoints: 0, gamePoints, zone: 'miss' }
+  return { teamPoints: 0, gamePoints, zone: 'miss' }
 }
 
 // Initial game state
@@ -27,7 +27,7 @@ const initialState = {
   phase: 'setup', // 'setup' | 'psychic' | 'guess' | 'reveal' | 'results'
   players: [],
   currentPsychicIndex: 0,
-  playerScore: 0,
+  teamScore: 0,
   gameScore: 0,
   currentRound: {
     spectrum: null,
@@ -164,7 +164,7 @@ export function useGameState() {
   const finishReveal = useCallback(() => {
     setState(prev => {
       const { result, spectrum, targetPosition, clue, guessPosition } = prev.currentRound
-      const newPlayerScore = prev.playerScore + result.playerPoints
+      const newTeamScore = prev.teamScore + result.teamPoints
       const newGameScore = prev.gameScore + result.gamePoints
       const nextPsychicIndex = prev.currentPsychicIndex + 1
 
@@ -183,13 +183,13 @@ export function useGameState() {
         return {
           ...prev,
           phase: 'results',
-          playerScore: newPlayerScore,
+          teamScore: newTeamScore,
           gameScore: newGameScore,
           roundHistory: [...prev.roundHistory, roundEntry]
         }
       }
 
-      // Start next round
+      // Start next psychic's turn
       const newSpectrum = getRandomSpectrum(prev.usedSpectrumIds)
       const newTarget = Math.floor(Math.random() * 101)
 
@@ -197,7 +197,7 @@ export function useGameState() {
         ...prev,
         phase: 'psychic',
         currentPsychicIndex: nextPsychicIndex,
-        playerScore: newPlayerScore,
+        teamScore: newTeamScore,
         gameScore: newGameScore,
         currentRound: {
           spectrum: newSpectrum,

@@ -22,7 +22,7 @@ export function RevealView({
   gameScore,
   isHost,
   isLastRound,
-  onNextRound
+  onNextPsychic
 }) {
   const [showTarget, setShowTarget] = useState(false)
   const [showResult, setShowResult] = useState(false)
@@ -153,8 +153,8 @@ export function RevealView({
             transition={{ delay: 0.3 }}
           >
             {isHost ? (
-              <button className="btn btn-primary" onClick={onNextRound}>
-                {isLastRound ? 'See Final Results' : 'Next Round'}
+              <button className="btn btn-primary" onClick={onNextPsychic}>
+                {isLastRound ? 'See Final Results' : 'Continue'}
               </button>
             ) : (
               <p className="waiting-message">

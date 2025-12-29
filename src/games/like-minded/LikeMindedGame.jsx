@@ -167,7 +167,7 @@ export function LikeMindedGame({ onBack }) {
       players,
       currentPsychic,
       currentPsychicIndex,
-      playerScore,
+      teamScore,
       gameScore,
       currentRound,
       roundHistory,
@@ -187,7 +187,7 @@ export function LikeMindedGame({ onBack }) {
             targetPosition={currentRound.targetPosition}
             roundNumber={currentPsychicIndex + 1}
             totalRounds={players.length}
-            playerScore={playerScore}
+            teamScore={teamScore}
             gameScore={gameScore}
             onSubmitClue={submitClue}
           />
@@ -202,7 +202,7 @@ export function LikeMindedGame({ onBack }) {
             guessPosition={currentRound.guessPosition}
             roundNumber={currentPsychicIndex + 1}
             totalRounds={players.length}
-            playerScore={playerScore}
+            teamScore={teamScore}
             gameScore={gameScore}
             onUpdateGuess={updateGuess}
             onLockIn={lockInGuess}
@@ -220,7 +220,7 @@ export function LikeMindedGame({ onBack }) {
             result={currentRound.result}
             roundNumber={currentPsychicIndex + 1}
             totalRounds={players.length}
-            playerScore={playerScore}
+            teamScore={teamScore}
             gameScore={gameScore}
             onContinue={finishReveal}
           />
@@ -229,7 +229,7 @@ export function LikeMindedGame({ onBack }) {
         {phase === 'results' && (
           <ResultsScreen
             key="results"
-            playerScore={playerScore}
+            teamScore={teamScore}
             gameScore={gameScore}
             roundHistory={roundHistory}
             onPlayAgain={handleSinglePlayAgain}
@@ -277,7 +277,7 @@ export function LikeMindedGame({ onBack }) {
       startGame,
       submitClue,
       lockInGuess,
-      nextRound,
+      nextPsychic,
       playAgain
     } = multiplayer
 
@@ -355,7 +355,7 @@ export function LikeMindedGame({ onBack }) {
           gameScore={room.game_score}
           isHost={isHost}
           isLastRound={isLastRound}
-          onNextRound={nextRound}
+          onNextPsychic={nextPsychic}
         />
       )
     }

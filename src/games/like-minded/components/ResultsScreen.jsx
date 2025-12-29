@@ -1,23 +1,23 @@
 import { motion } from 'framer-motion'
 
 export function ResultsScreen({
-  playerScore,
+  teamScore,
   gameScore,
   roundHistory,
   onPlayAgain,
   onExit
 }) {
-  const playerWon = playerScore > gameScore
-  const tied = playerScore === gameScore
+  const teamWon = teamScore > gameScore
+  const tied = teamScore === gameScore
 
   const getResultTitle = () => {
     if (tied) return 'It\'s a Tie!'
-    return playerWon ? 'You Win!' : 'Game Wins!'
+    return teamWon ? 'You Win!' : 'Game Wins!'
   }
 
   const getResultEmoji = () => {
     if (tied) return '&#129309;'
-    return playerWon ? '&#127881;' : '&#128546;'
+    return teamWon ? '&#127881;' : '&#128546;'
   }
 
   return (
@@ -29,7 +29,7 @@ export function ResultsScreen({
     >
       {/* Result header */}
       <motion.div
-        className={`results-header ${playerWon ? 'win' : tied ? 'tie' : 'lose'}`}
+        className={`results-header ${teamWon ? 'win' : tied ? 'tie' : 'lose'}`}
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ type: 'spring', delay: 0.2 }}
@@ -49,12 +49,12 @@ export function ResultsScreen({
         transition={{ delay: 0.4 }}
       >
         <div className="final-score-item you">
-          <span className="final-score-label">Your Team</span>
-          <span className="final-score-value">{playerScore}</span>
+          <span className="final-score-label">Team</span>
+          <span className="final-score-value">{teamScore}</span>
         </div>
         <div className="final-score-vs">vs</div>
         <div className="final-score-item game">
-          <span className="final-score-label">The Game</span>
+          <span className="final-score-label">Game</span>
           <span className="final-score-value">{gameScore}</span>
         </div>
       </motion.div>
@@ -85,8 +85,8 @@ export function ResultsScreen({
                 <span className="history-clue">&ldquo;{round.clue}&rdquo;</span>
               </div>
               <div className="history-score">
-                {round.result.playerPoints > 0 ? (
-                  <span className="points-gained">+{round.result.playerPoints}</span>
+                {round.result.teamPoints > 0 ? (
+                  <span className="points-gained">+{round.result.teamPoints}</span>
                 ) : (
                   <span className="points-lost">-{round.result.gamePoints}</span>
                 )}

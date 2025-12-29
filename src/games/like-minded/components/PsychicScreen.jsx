@@ -8,7 +8,7 @@ export function PsychicScreen({
   targetPosition,
   roundNumber,
   totalRounds,
-  playerScore,
+  teamScore,
   gameScore,
   onSubmitClue
 }) {
@@ -40,8 +40,8 @@ export function PsychicScreen({
       {/* Score display */}
       <div className="score-display">
         <div className="score-item you">
-          <span className="score-label">You</span>
-          <span className="score-value">{playerScore}</span>
+          <span className="score-label">Team</span>
+          <span className="score-value">{teamScore}</span>
         </div>
         <div className="score-divider">vs</div>
         <div className="score-item game">
