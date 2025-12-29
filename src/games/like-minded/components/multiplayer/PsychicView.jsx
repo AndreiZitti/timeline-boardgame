@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Spectrum } from '../Spectrum'
 
@@ -12,15 +12,16 @@ export function PsychicView({
   onSubmitClue
 }) {
   const [clue, setClue] = useState('')
-  const [showTarget, setShowTarget] = useState(false)
+  const [revealTriggered, setRevealTriggered] = useState(false)
+  const [animationComplete, setAnimationComplete] = useState(false)
 
-  // Trigger the reveal animation when component mounts
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowTarget(true)
-    }, 500)
-    return () => clearTimeout(timer)
-  }, [targetPosition])
+  const handleReveal = () => {
+    setRevealTriggered(true)
+  }
+
+  const handleAnimationComplete = () => {
+    setAnimationComplete(true)
+  }
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -75,55 +76,76 @@ export function PsychicView({
       >
         <Spectrum
           spectrum={spectrum}
-          showTarget={showTarget}
+          showTarget={revealTriggered}
           targetPosition={targetPosition}
           animateReveal={true}
+          onAnimationComplete={handleAnimationComplete}
         />
       </motion.div>
 
-      {/* Target info */}
-      <motion.div
-        className="target-info"
-        initial={{ y: 20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.4 }}
-      >
-        <p>The target is at position <strong>{targetPosition}</strong></p>
-        <p className="target-hint">Give a clue that points to this spot!</p>
-      </motion.div>
-
-      {/* Clue input */}
-      <motion.form
-        className="clue-form"
-        onSubmit={handleSubmit}
-        initial={{ y: 20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.5 }}
-      >
-        <div className="input-group">
-          <label>Your Clue</label>
-          <input
-            type="text"
-            value={clue}
-            onChange={(e) => setClue(e.target.value)}
-            placeholder="Enter a word or phrase..."
-            maxLength={50}
-            autoFocus
-          />
-        </div>
-        <button
-          type="submit"
-          className="btn btn-primary"
-          disabled={!clue.trim()}
+      {/* Reveal button - shown before reveal is triggered */}
+      {!revealTriggered && (
+        <motion.div
+          className="reveal-section"
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.4 }}
         >
-          Submit Clue
-        </button>
-      </motion.form>
+          <p>When you&apos;re ready, reveal your target position!</p>
+          <button className="btn btn-primary btn-reveal" onClick={handleReveal}>
+            Reveal Target
+          </button>
+        </motion.div>
+      )}
 
-      {/* Tip */}
-      <div className="psychic-tip">
-        Tip: Avoid numbers! Think about where the clue lands on the spectrum.
-      </div>
+      {/* Target info - shown after animation completes */}
+      {animationComplete && (
+        <motion.div
+          className="target-info"
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+        >
+          <p>The target is at position <strong>{targetPosition}</strong></p>
+          <p className="target-hint">Give a clue that points to this spot!</p>
+        </motion.div>
+      )}
+
+      {/* Clue input - shown after animation completes */}
+      {animationComplete && (
+        <motion.form
+          className="clue-form"
+          onSubmit={handleSubmit}
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.2 }}
+        >
+          <div className="input-group">
+            <label>Your Clue</label>
+            <input
+              type="text"
+              value={clue}
+              onChange={(e) => setClue(e.target.value)}
+              placeholder="Enter a word or phrase..."
+              maxLength={50}
+              autoFocus
+            />
+          </div>
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={!clue.trim()}
+          >
+            Submit Clue
+          </button>
+        </motion.form>
+      )}
+
+      {/* Tip - shown after animation completes */}
+      {animationComplete && (
+        <div className="psychic-tip">
+          Tip: Avoid numbers! Think about where the clue lands on the spectrum.
+        </div>
+      )}
     </motion.div>
   )
 }

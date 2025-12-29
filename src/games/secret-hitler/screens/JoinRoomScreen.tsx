@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import "./JoinRoomScreen.css";
 
 interface JoinRoomScreenProps {
@@ -45,15 +46,39 @@ export function JoinRoomScreen({
   const isValid = isValidName && isValidCode;
 
   return (
-    <div className="secret-hitler-screen">
+    <motion.div
+      className="secret-hitler-screen"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
       <button className="btn-back" onClick={onBack}>
         &larr; Back
       </button>
 
-      <h1>JOIN ROOM</h1>
-      <p className="subtitle">Enter a room code to join</p>
+      <motion.h1
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.1 }}
+      >
+        JOIN ROOM
+      </motion.h1>
+      <motion.p
+        className="subtitle"
+        initial={{ y: -10, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.15 }}
+      >
+        Enter a room code to join
+      </motion.p>
 
-      <form onSubmit={handleSubmit} className="join-room-form">
+      <motion.form
+        onSubmit={handleSubmit}
+        className="join-room-form"
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.2 }}
+      >
         <div className="form-group">
           <label htmlFor="room-code">Room Code</label>
           <input
@@ -92,8 +117,8 @@ export function JoinRoomScreen({
         >
           {loading ? "Joining..." : "Join Room"}
         </button>
-      </form>
-    </div>
+      </motion.form>
+    </motion.div>
   );
 }
 

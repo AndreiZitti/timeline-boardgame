@@ -4,25 +4,25 @@
 @import url('https://fonts.googleapis.com/css2?family=Germania+One&family=Montserrat:wght@300;400;500;600;700&display=swap');
 
 :root {
-  /* Neutral colors for home/create/join screens */
-  --neutral-bg: #1a1a2e;
-  --neutral-bg-light: #252542;
-  --neutral-bg-card: #2d2d4a;
-  --neutral-text: #e5e7eb;
-  --neutral-text-muted: #9ca3af;
-  --neutral-border: #374151;
-  --neutral-accent: #6366f1;
-  --neutral-accent-hover: #818cf8;
+  /* Neutral colors for home/create/join screens - aligned with globals.css */
+  --neutral-bg: #0c0a0f;
+  --neutral-bg-light: #14111a;
+  --neutral-bg-card: #1a1622;
+  --neutral-text: #fafafa;
+  --neutral-text-muted: #a8a3b3;
+  --neutral-border: rgba(255, 255, 255, 0.12);
+  --neutral-accent: #a855f7;
+  --neutral-accent-hover: #c084fc;
 
-  /* Button colors */
-  --btn-primary-bg: #6366f1;
-  --btn-primary-hover: #818cf8;
-  --btn-primary-shadow: #4338ca;
-  --btn-secondary-bg: #374151;
-  --btn-secondary-hover: #4b5563;
-  --btn-secondary-shadow: #1f2937;
-  --btn-disabled-bg: #4b5563;
-  --btn-disabled-shadow: #374151;
+  /* Button colors - aligned with globals.css */
+  --btn-primary-bg: #a855f7;
+  --btn-primary-hover: #c084fc;
+  --btn-primary-shadow: #7c3aed;
+  --btn-secondary-bg: #1a1622;
+  --btn-secondary-hover: #221d2b;
+  --btn-secondary-shadow: #0c0a0f;
+  --btn-disabled-bg: #2d2d4a;
+  --btn-disabled-shadow: #1a1622;
 
   /* Typography */
   --font-display: 'Germania One', cursive;

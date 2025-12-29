@@ -11,7 +11,8 @@ export function Spectrum({
   onGuessChange,
   interactive = false,
   showZones = false,
-  animateReveal = false
+  animateReveal = false,
+  onAnimationComplete
 }) {
   const [displayValue, setDisplayValue] = useState(50)
   const [isSpinning, setIsSpinning] = useState(false)
@@ -71,6 +72,7 @@ export function Spectrum({
           setDisplayValue(targetPosition)
           setIsSpinning(false)
           setSpinComplete(true)
+          onAnimationComplete?.()
         }
       }
 

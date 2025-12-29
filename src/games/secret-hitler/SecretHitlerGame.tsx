@@ -4,11 +4,10 @@ import React, { useEffect, useState, useRef } from "react";
 import dynamic from "next/dynamic";
 import Cookies from "js-cookie";
 
-// Import styles
+// Import styles (base.css includes Google Fonts)
 import "./styles/base.css";
 import "./styles/theme-original.css";
 import "./styles/theme-voldemort.css";
-import "./fonts.css";
 
 // Import screens
 import { HomeScreen, CreateRoomScreen, JoinRoomScreen, ArtStyle } from "./screens";
@@ -27,8 +26,8 @@ interface SecretHitlerGameProps {
 const GameApp = dynamic(() => import("./App"), {
   ssr: false,
   loading: () => (
-    <div className="secret-hitler-screen">
-      <p>Loading game...</p>
+    <div className="secret-hitler-screen loading-screen">
+      <p>Connecting to game...</p>
     </div>
   ),
 });
@@ -39,7 +38,6 @@ const COOKIE_NAME = "sh_name";
 const COOKIE_LOBBY = "sh_lobby";
 
 export function SecretHitlerGame({ onBack }: SecretHitlerGameProps) {
-  const [mounted, setMounted] = useState(false);
   const [screen, setScreen] = useState<Screen>("home");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -56,9 +54,8 @@ export function SecretHitlerGame({ onBack }: SecretHitlerGameProps) {
     artStyle: ArtStyle;
   } | null>(null);
 
+  // Load saved data from cookies/URL on mount (client-side only)
   useEffect(() => {
-    setMounted(true);
-
     // Load saved name from cookie
     const name = Cookies.get(COOKIE_NAME);
     if (name) {
@@ -168,14 +165,6 @@ export function SecretHitlerGame({ onBack }: SecretHitlerGameProps) {
     setScreen("home");
     setError("");
   };
-
-  if (!mounted) {
-    return (
-      <div className="secret-hitler-screen">
-        <p>Loading...</p>
-      </div>
-    );
-  }
 
   // Render based on current screen
   switch (screen) {

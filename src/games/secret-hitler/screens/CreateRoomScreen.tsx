@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { motion } from "framer-motion";
 import "./CreateRoomScreen.css";
 
 export type ArtStyle = "original" | "voldemort";
@@ -33,15 +34,39 @@ export function CreateRoomScreen({
   const isValid = name.trim().length > 0 && name.trim().length <= 12;
 
   return (
-    <div className="secret-hitler-screen">
+    <motion.div
+      className="secret-hitler-screen"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
       <button className="btn-back" onClick={onBack}>
         &larr; Back
       </button>
 
-      <h1>CREATE ROOM</h1>
-      <p className="subtitle">Set up a new game lobby</p>
+      <motion.h1
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.1 }}
+      >
+        CREATE ROOM
+      </motion.h1>
+      <motion.p
+        className="subtitle"
+        initial={{ y: -10, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.15 }}
+      >
+        Set up a new game lobby
+      </motion.p>
 
-      <form onSubmit={handleSubmit} className="create-room-form">
+      <motion.form
+        onSubmit={handleSubmit}
+        className="create-room-form"
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.2 }}
+      >
         <div className="form-group">
           <label htmlFor="player-name">Your Name</label>
           <input
@@ -126,8 +151,8 @@ export function CreateRoomScreen({
         >
           {loading ? "Creating..." : "Create Room"}
         </button>
-      </form>
-    </div>
+      </motion.form>
+    </motion.div>
   );
 }
 
