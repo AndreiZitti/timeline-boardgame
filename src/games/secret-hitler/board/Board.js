@@ -62,8 +62,12 @@ class Board extends Component {
     }
 
     render() {
-        const { themeAssets, themeLayout } = this.props;
+        const { themeAssets, themeLayout, themeLabels } = this.props;
         const layout = themeLayout || DEFAULT_LAYOUT;
+
+        // Get themed labels or fall back to defaults
+        const liberalPoliciesLabel = themeLabels?.liberalPolicies || "liberal policies";
+        const fascistPoliciesLabel = themeLabels?.fascistPolicies || "fascist policies";
 
         const liberalBoard = themeAssets?.boardLiberal || "/secret-hitler/board-liberal.png";
         const electionTracker = themeAssets?.boardTracker || "/secret-hitler/board-tracker.png";
@@ -78,7 +82,7 @@ class Board extends Component {
                 <div id="board-group">
                     <img id="board"
                          src={liberalBoard}
-                         alt={this.props.numLiberalPolicies + " liberal policies have been passed."}
+                         alt={this.props.numLiberalPolicies + " " + liberalPoliciesLabel + " have been passed."}
                     />
                     <img id="election-tracker"
                          src={electionTracker}
@@ -104,7 +108,7 @@ class Board extends Component {
                     <img
                       id="board"
                       src={this.getFascistBoard()}
-                      alt={this.props.numFascistPolicies + " fascist policies have been passed."}
+                      alt={this.props.numFascistPolicies + " " + fascistPoliciesLabel + " have been passed."}
                     />
                     {this.placeRepeating(
                         this.props.numFascistPolicies,
@@ -127,7 +131,8 @@ Board.defaultProps = {
     electionTracker: 0,
     numPlayers: 5,
     themeAssets: null,
-    themeLayout: null
+    themeLayout: null,
+    themeLabels: null
 };
 
 export default Board;

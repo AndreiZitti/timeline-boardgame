@@ -16,6 +16,13 @@ class PlayerPolicyStatus extends  Component {
     render() {
         let fascistPlayers, liberalPlayers;
         let props = this.props;
+        const { themeLabels } = props;
+
+        // Get themed labels or fall back to defaults
+        const liberalLabel = themeLabels?.liberal || "Liberal";
+        const fascistLabel = themeLabels?.fascist || "Fascist";
+        const hitlerLabel = themeLabels?.hitler || "Hitler";
+
         if (props.playerCount <= 6) {
             fascistPlayers = 1;
         } else if (props.playerCount <= 8) {
@@ -31,11 +38,11 @@ class PlayerPolicyStatus extends  Component {
                     Players:
                 </p>
                 <div id={"pps-icon-container"}>
-                    <img id="pps-icon" src={IconLiberal} alt={"Liberal"}/>
+                    <img id="pps-icon" src={IconLiberal} alt={liberalLabel}/>
                     <p id={"pps-icon-number"} className={"highlight-blue"}>{liberalPlayers}</p>
-                    <img id="pps-icon" src={IconFascist} alt={"Fascist"}/>
+                    <img id="pps-icon" src={IconFascist} alt={fascistLabel}/>
                     <p id={"pps-icon-number"} className={"highlight"}>{fascistPlayers}</p>
-                    <img id="pps-icon" src={IconHitler} alt={"Hitler"}/>
+                    <img id="pps-icon" src={IconHitler} alt={hitlerLabel}/>
                     <p id={"pps-icon-number"}  className={"highlight"}>{NUM_HITLER_PLAYERS}</p>
                 </div>
 
@@ -43,9 +50,9 @@ class PlayerPolicyStatus extends  Component {
                     Unenacted Policies:
                 </p>
                 <div id={"pps-icon-container"}>
-                    <img id="pps-icon" className={"highlight-blue"} src={IconLiberal} alt={"Liberal"}/>
+                    <img id="pps-icon" className={"highlight-blue"} src={IconLiberal} alt={liberalLabel}/>
                     <p id={"pps-icon-number"} className={"highlight-blue"}>{MAX_LIBERAL_POLICIES - props.numLiberalPolicies}</p>
-                    <img id="pps-icon" className={"highlight"} src={IconFascist} alt={"Fascist"}/>
+                    <img id="pps-icon" className={"highlight"} src={IconFascist} alt={fascistLabel}/>
                     <p id={"pps-icon-number"} className={"highlight"}>{MAX_FASCIST_POLICIES - props.numFascistPolicies}</p>
                 </div>
             </div>
@@ -57,6 +64,7 @@ PlayerPolicyStatus.propTypes = {
     numFascistPolicies: PropTypes.number.isRequired,
     numLiberalPolicies: PropTypes.number.isRequired,
     playerCount: PropTypes.number.isRequired,
+    themeLabels: PropTypes.object,
 };
 
 export default PlayerPolicyStatus;

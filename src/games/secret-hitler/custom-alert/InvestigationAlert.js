@@ -24,14 +24,24 @@ class InvestigationAlert extends Component {
     }, 1500);
   }
 
+  getPartyLabel() {
+    const { party, themeLabels } = this.props;
+    if (!themeLabels) {
+      return party;
+    }
+    return party === LIBERAL
+      ? themeLabels.partyMembership.liberal
+      : themeLabels.partyMembership.fascist;
+  }
+
   render() {
     const { themeAssets } = this.props;
     const partyBack = themeAssets?.partyMembership || "/secret-hitler/party-membership.png";
     const partyLiberal = themeAssets?.partyMembershipLiberal || "/secret-hitler/party-membership-liberal.png";
     const partyFascist = themeAssets?.partyMembershipFascist || "/secret-hitler/party-membership-fascist.png";
 
-    let alt =
-      this.props.target + " is a member of the " + this.props.party + " party.";
+    const partyLabel = this.getPartyLabel();
+    let alt = this.props.target + " is a member of the " + partyLabel + ".";
     let cardFrontSrc =
       this.props.party === LIBERAL ? partyLiberal : partyFascist;
     let footerClass = this.state.showText
@@ -46,10 +56,7 @@ class InvestigationAlert extends Component {
         renderFooter={() => {
           return (
             <p id="investigation-text" className={footerClass}>
-              {this.props.target +
-                " is a member of the " +
-                this.props.party +
-                " party."}
+              {this.props.target + " is a member of the " + partyLabel + "."}
             </p>
           );
         }}
@@ -81,6 +88,7 @@ InvestigationAlert.propTypes = {
   target: PropTypes.string.isRequired,
   hideAlert: PropTypes.func.isRequired,
   themeAssets: PropTypes.object,
+  themeLabels: PropTypes.object,
 };
 
 export default InvestigationAlert;

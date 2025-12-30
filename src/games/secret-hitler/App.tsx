@@ -483,6 +483,7 @@ class App extends Component<AppProps, AppState> {
             target={message[PARAM_TARGET]}
             hideAlert={this.hideAlertAndFinish}
             themeAssets={this.themeAssets}
+            themeLabels={this.themeLabels}
           />,
           false
         );
@@ -1717,6 +1718,7 @@ class App extends Component<AppProps, AppState> {
                   numFascistPolicies={this.state.fascistPolicies}
                   numLiberalPolicies={this.state.liberalPolicies}
                   playerCount={this.state.gameState.playerOrder.length}
+                  themeLabels={this.themeLabels}
                 />
               </div>
 
@@ -1734,6 +1736,7 @@ class App extends Component<AppProps, AppState> {
               electionTracker={this.state.electionTracker}
               themeAssets={this.themeAssets}
               themeLayout={this.themeLayout}
+              themeLabels={this.themeLabels}
             />
           </div>
         </div>
