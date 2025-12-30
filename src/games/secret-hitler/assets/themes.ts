@@ -232,8 +232,24 @@ const voldemortAssetsPartial: Partial<ThemeAssets> = {
   voteYes: "/secret-hitler/voldemort/vote-yes.svg",
   voteNo: "/secret-hitler/voldemort/vote-no.svg",
 
-  // Role cards
-  roleEnvelopeBack: "/secret-hitler/voldemort/role-envelope-back.svg",
+  // Role cards - card back
+  roleEnvelopeBack: "/secret-hitler/voldemort/backCard.svg",
+
+  // Role cards - Voldemort (Hitler equivalent)
+  roleHitler: "/secret-hitler/voldemort/role-voldemort.svg",
+
+  // Role cards - Death Eaters (Fascists): Lucius, Bellatrix, Pettigrew
+  roleFascist1: "/secret-hitler/voldemort/role-fascist-1.svg",
+  roleFascist2: "/secret-hitler/voldemort/role-fascist-2.svg",
+  roleFascist3: "/secret-hitler/voldemort/role-fascist-3.svg",
+
+  // Role cards - Order of the Phoenix (Liberals): Harry, James, Ron, Hermione, Neville, Sirius
+  roleLiberal1: "/secret-hitler/voldemort/role-liberal-1.svg",
+  roleLiberal2: "/secret-hitler/voldemort/role-liberal-2.svg",
+  roleLiberal3: "/secret-hitler/voldemort/role-liberal-3.svg",
+  roleLiberal4: "/secret-hitler/voldemort/role-liberal-4.svg",
+  roleLiberal5: "/secret-hitler/voldemort/role-liberal-5.svg",
+  roleLiberal6: "/secret-hitler/voldemort/role-liberal-6.svg",
 };
 
 // Merge Voldemort partial with original fallbacks

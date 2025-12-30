@@ -37,6 +37,25 @@
   --theme-selection-hover: rgba(201, 162, 39, 1.00);
   --theme-selection-selected: rgba(26, 92, 50, 1.00);
 
+  /* Override legacy variables for lobby/game screens */
+  --headerFill: #1a5c32;
+  --headerTextColor: #e0e0e0;
+  --backgroundLight: #1a1a2e;
+  --backgroundDark: #0f0f1a;
+  --textColorOnDark: #a0a0a0;
+  --textColorHighlight: #50c878;
+  --textColorLiberal: #c9a227;
+  --buttonFill: #1a5c32;
+  --buttonShadowFill: #0d3a1e;
+  --buttonHoverFill: #2a7a4a;
+  --buttonDisabledFill: #4a4a5a;
+  --buttonDisabledShadowFill: #2a2a3a;
+  --buttonAltFill: #c9a227;
+  --buttonAltHoverFill: #dab840;
+  --buttonAltShadowFill: #9a7a1a;
+  --alertFill: #0a0a14;
+  --statusBarColor: #0a0a14;
+
   /* Apply theme background */
   background-color: var(--theme-bg);
   color: var(--theme-text);
@@ -185,4 +204,34 @@
 
 .theme-voldemort .selectable.selected {
   box-shadow: 0 0 25px var(--theme-selection-selected);
+}
+
+/* Game container - fills viewport and prevents scroll bleed */
+.secret-hitler-game-container.theme-voldemort {
+  min-height: 100vh;
+  background-color: var(--theme-bg);
+  overflow-x: hidden;
+  overscroll-behavior: none;
+}
+
+/* Override body background when Voldemort theme is active */
+body:has(.theme-voldemort) {
+  background-color: #1a1a2e !important;
+  overscroll-behavior: none;
+}
+
+/* Ensure App container has themed background */
+.theme-voldemort .App {
+  background-color: var(--theme-bg);
+  min-height: 100vh;
+}
+
+/* Lobby page specific overrides */
+.theme-voldemort #lobby-lower-container {
+  background-color: var(--theme-bg);
+}
+
+/* Header bar in lobby/game */
+.theme-voldemort header {
+  background-color: var(--theme-primary);
 }

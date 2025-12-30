@@ -136,13 +136,6 @@
   border-radius: 6px;
 }
 
-.art-style-card.voldemort {
-  cursor: not-allowed;
-}
-
-.art-style-card.voldemort:hover {
-  transform: none;
-}
 
 /* Bot Settings Section */
 .bot-settings-section {

@@ -103,15 +103,17 @@ class Deck extends Component {
         const { themeAssets } = this.props;
         const drawDeck = themeAssets?.boardDraw || "/secret-hitler/board-draw.png";
         const discardDeck = themeAssets?.boardDiscard || "/secret-hitler/board-discard.png";
+        const deckLabel = this.props.deckType === "DRAW" ? "Draw" : "Discard";
 
         return(
             <div id={"deck-container"} style={{position:"relative"}}>
                 <p id={"deck-card-count"}>
-                    {this.numCards}
+                    {this.numCards} {this.numCards === 1 ? "card" : "cards"}
                 </p>
                 <img id={"deck-base"}
                      src={(this.props.deckType === "DRAW" ? drawDeck : discardDeck)}
-                     alt={"The " + this.props.deckType.toLowerCase() + " deck. (" + this.props.cardCount + " policies)"}/>
+                     alt={deckLabel + " deck (" + this.props.cardCount + " policies)"}
+                     title={deckLabel + " pile"}/>
                 {this.getCards()}
             </div>
         );

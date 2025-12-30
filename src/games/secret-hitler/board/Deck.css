@@ -3,21 +3,41 @@
 #deck-container {
     width: 14vmin;
     height: fit-content;
+    cursor: pointer;
 }
 
 #deck-base {
     width: 14vmin;
     height: auto;
+    transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+#deck-container:hover #deck-base {
+    transform: scale(1.05);
+    filter: brightness(1.1);
 }
 
 #deck-card-count {
-    font-size: 3.5vmin;
+    font-size: 2.5vmin;
+    font-weight: 600;
     position: absolute;
     color: var(--textColorWhite);
-    left: 30%;
-    top: 58%;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
     text-align: center;
-    width: 40%;
+    background: rgba(0, 0, 0, 0.8);
+    padding: 0.5vmin 1.2vmin;
+    border-radius: 0.8vmin;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 10;
+}
+
+#deck-container:hover #deck-card-count {
+    opacity: 1;
 }
 
 #deck-policy {

@@ -1384,7 +1384,7 @@ class App extends Component<AppProps, AppState> {
           if (fascistVictoryElection || fascistVictoryPolicy) {
             players = fascistPlayers.concat(liberalPlayers);
             headerImage = this.themeAssets.victoryFascistHeader;
-            headerAlt = "Fascist Victory, written in red with a skull icon.";
+            headerAlt = `${this.themeLabels.fascistParty} Victory`;
             messageClass = "highlight";
             if (fascistVictoryPolicy) {
               victoryMessage = this.themeLabels.fascistPolicyVictory;
@@ -1394,7 +1394,7 @@ class App extends Component<AppProps, AppState> {
           } else {
             players = liberalPlayers.concat(fascistPlayers);
             headerImage = this.themeAssets.victoryLiberalHeader;
-            headerAlt = "Liberal Victory, written in blue with a dove icon.";
+            headerAlt = `${this.themeLabels.liberalParty} Victory`;
             messageClass = "highlight-blue";
             if (liberalVictoryPolicy) {
               victoryMessage = this.themeLabels.liberalPolicyVictory;
