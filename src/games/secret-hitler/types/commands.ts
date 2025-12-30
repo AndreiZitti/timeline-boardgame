@@ -10,6 +10,8 @@ export const enum WSCommandType {
   END_DISCUSSION = "end-discussion",
   // Select an icon
   SELECT_ICON = "select-icon",
+  // Set theme (VIP only)
+  SET_THEME = "set-theme",
   // Select a player
   NOMINATE_CHANCELLOR = "nominate-chancellor",
   REGISTER_EXECUTION = "register-execution",
@@ -33,6 +35,7 @@ export type ServerRequestPayload =
   | { command: WSCommandType.END_TERM }
   | { command: WSCommandType.END_DISCUSSION }
   | { command: WSCommandType.SELECT_ICON; icon: string }
+  | { command: WSCommandType.SET_THEME; theme: string }
   | { command: WSCommandType.NOMINATE_CHANCELLOR; target: string }
   | { command: WSCommandType.REGISTER_EXECUTION; target: string }
   | { command: WSCommandType.REGISTER_SPECIAL_ELECTION; target: string }

@@ -47,6 +47,7 @@ export function SecretHitlerGame({ onBack }: SecretHitlerGameProps) {
   const [error, setError] = useState("");
   const [savedName, setSavedName] = useState("");
   const [initialCode, setInitialCode] = useState("");
+  const [isCheckingRejoin, setIsCheckingRejoin] = useState(true);
 
   // Bot manager reference
   const botManagerRef = useRef<BotManager | null>(null);
@@ -58,21 +59,56 @@ export function SecretHitlerGame({ onBack }: SecretHitlerGameProps) {
     artStyle: ThemeId;
   } | null>(null);
 
-  // Load saved data from cookies/URL on mount (client-side only)
+  // Load saved data from cookies/URL on mount and attempt auto-rejoin
   useEffect(() => {
-    // Load saved name from cookie
-    const name = Cookies.get(COOKIE_NAME);
-    if (name) {
-      setSavedName(name);
-    }
+    const attemptAutoRejoin = async () => {
+      // Load saved name from cookie
+      const name = Cookies.get(COOKIE_NAME);
+      const lobby = Cookies.get(COOKIE_LOBBY);
 
-    // Check URL for lobby code
-    const urlParams = new URLSearchParams(window.location.search);
-    const lobbyFromUrl = urlParams.get("lobby");
-    if (lobbyFromUrl) {
-      setInitialCode(lobbyFromUrl.toUpperCase().slice(0, 4));
-      setScreen("join");
-    }
+      if (name) {
+        setSavedName(name);
+      }
+
+      // Check URL for lobby code (takes priority over saved lobby)
+      const urlParams = new URLSearchParams(window.location.search);
+      const lobbyFromUrl = urlParams.get("lobby");
+
+      if (lobbyFromUrl) {
+        setInitialCode(lobbyFromUrl.toUpperCase().slice(0, 4));
+        setScreen("join");
+        setIsCheckingRejoin(false);
+        return;
+      }
+
+      // If we have both name and lobby saved, try to auto-rejoin
+      if (name && lobby) {
+        try {
+          const response = await fetch(
+            `${SERVER_ADDRESS_HTTP}${CHECK_LOGIN}?name=${encodeURIComponent(name)}&lobby=${encodeURIComponent(lobby)}`
+          );
+
+          if (response.ok) {
+            // Can rejoin! Start game session automatically
+            console.log(`[SecretHitlerGame] Auto-rejoining lobby ${lobby} as ${name}`);
+            setGameSession({ name, lobby, artStyle: "original" });
+            setScreen("game");
+            setIsCheckingRejoin(false);
+            return;
+          } else {
+            // Lobby doesn't exist or can't rejoin - clear the saved lobby
+            console.log(`[SecretHitlerGame] Cannot rejoin lobby ${lobby}: ${response.status}`);
+            Cookies.remove(COOKIE_LOBBY);
+          }
+        } catch (err) {
+          console.log("[SecretHitlerGame] Failed to check for auto-rejoin:", err);
+        }
+      }
+
+      setIsCheckingRejoin(false);
+    };
+
+    attemptAutoRejoin();
   }, []);
 
   // Create a new lobby
@@ -84,6 +120,7 @@ export function SecretHitlerGame({ onBack }: SecretHitlerGameProps) {
       const response = await fetch(SERVER_ADDRESS_HTTP + NEW_LOBBY);
       if (response.ok) {
         const lobbyCode = await response.text();
+
 
         // Save to cookies
         Cookies.set(COOKIE_NAME, name, { expires: 7 });
@@ -160,15 +197,36 @@ export function SecretHitlerGame({ onBack }: SecretHitlerGameProps) {
 
   // Handle leaving the game and returning to home
   const handleLeaveGame = () => {
+    console.log("[SecretHitlerGame] handleLeaveGame called");
     // Disconnect bots when leaving
     if (botManagerRef.current) {
       botManagerRef.current.disconnect();
       botManagerRef.current = null;
     }
+    // Clear lobby cookie so we don't auto-rejoin a lobby we left intentionally
+    Cookies.remove(COOKIE_LOBBY);
+    console.log("[SecretHitlerGame] Setting gameSession to null and screen to home");
     setGameSession(null);
     setScreen("home");
     setError("");
   };
+
+  // Handle theme received from server (for joining players)
+  const handleThemeReceived = (theme: ThemeId) => {
+    if (gameSession && theme !== gameSession.artStyle) {
+      console.log(`[SecretHitlerGame] Theme updated from server: ${theme}`);
+      setGameSession(prev => prev ? { ...prev, artStyle: theme } : null);
+    }
+  };
+
+  // Show loading screen while checking for auto-rejoin
+  if (isCheckingRejoin) {
+    return (
+      <div className="secret-hitler-screen loading-screen">
+        <p>Checking session...</p>
+      </div>
+    );
+  }
 
   // Render based on current screen
   switch (screen) {
@@ -222,10 +280,12 @@ export function SecretHitlerGame({ onBack }: SecretHitlerGameProps) {
         <ThemeProvider themeId={gameSession.artStyle}>
           <div className={`secret-hitler-game-container theme-${gameSession.artStyle}`}>
             <GameApp
+              key={gameSession.lobby} // Force remount when lobby changes
               onBack={handleLeaveGame}
               initialName={gameSession.name}
               initialLobby={gameSession.lobby}
               themeId={gameSession.artStyle}
+              onThemeReceived={handleThemeReceived}
             />
           </div>
         </ThemeProvider>

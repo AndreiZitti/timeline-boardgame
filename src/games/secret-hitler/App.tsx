@@ -123,8 +123,9 @@ const DEFAULT_GAME_STATE: GameState = {
   icon: {},
 };
 
-const COOKIE_NAME = "name";
-const COOKIE_LOBBY = "lobby";
+// Cookie names - must match SecretHitlerGame.tsx
+const COOKIE_NAME = "sh_name";
+const COOKIE_LOBBY = "sh_lobby";
 
 if (DEBUG) {
   console.warn("Running in debug mode.");
@@ -168,6 +169,10 @@ type AppState = {
   eventBarMessage: string;
   statusBarText: string;
   allAnimationsFinished: boolean;
+  /* Whether we're currently attempting to reconnect */
+  isReconnecting: boolean;
+  reconnectAttempt: number;
+  reconnectCountdown: number;
 };
 
 const defaultAppState: AppState = {
@@ -198,6 +203,9 @@ const defaultAppState: AppState = {
   eventBarMessage: "",
   statusBarText: "---",
   allAnimationsFinished: true,
+  isReconnecting: false,
+  reconnectAttempt: 0,
+  reconnectCountdown: 0,
 };
 
 interface AppProps {
@@ -205,6 +213,7 @@ interface AppProps {
   initialName?: string;
   initialLobby?: string;
   themeId?: ThemeId;
+  onThemeReceived?: (theme: ThemeId) => void;
 }
 
 class App extends Component<AppProps, AppState> {
@@ -214,6 +223,8 @@ class App extends Component<AppProps, AppState> {
   themeLayout: ThemeLayout;
   themeLabels: ThemeLabels;
   pingInterval?: NodeJS.Timeout = undefined;
+  reconnectTimeout?: NodeJS.Timeout = undefined;
+  countdownInterval?: NodeJS.Timeout = undefined;
   reconnectOnConnectionClosed: boolean = true;
   snackbarMessages: number = 0;
   animationQueue: (() => void)[] = [];
@@ -264,6 +275,7 @@ class App extends Component<AppProps, AppState> {
     this.showChangeIconAlert = this.showChangeIconAlert.bind(this);
     this.updateChangeIconAlert = this.updateChangeIconAlert.bind(this);
     this.onClickChangeIcon = this.onClickChangeIcon.bind(this);
+    this.cancelReconnect = this.cancelReconnect.bind(this);
 
     // Ping the server to wake it up if it's not currently being used
     // This reduces the delay users experience when starting lobbies
@@ -378,7 +390,7 @@ class App extends Component<AppProps, AppState> {
 
   /**
    * Called when the websocket closes.
-   * @effects attempts to reopen the websocket connection.
+   * @effects attempts to reopen the websocket connection with exponential backoff.
    *          If the user pressed the "Leave Lobby" button or a maximum number of attempts has been reached
    *          ({@code MAX_FAILED_CONNECTIONS}), does not reopen the websocket connection and returns the user to the
    *          login screen with a relevant error message.
@@ -389,37 +401,78 @@ class App extends Component<AppProps, AppState> {
       clearInterval(this.pingInterval);
     }
 
+    // Clear any pending reconnect timeout and countdown
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = undefined;
+    }
+    if (this.countdownInterval) {
+      clearInterval(this.countdownInterval);
+      this.countdownInterval = undefined;
+    }
+
     console.log(
       "A websocket closed: " +
         this.websocket?.url +
         ". Reopening to current lobby " +
         this.state.lobby
     );
-    //
 
     if (
       this.reconnectOnConnectionClosed &&
       this.failedConnections < MAX_FAILED_CONNECTIONS
     ) {
-      if (this.failedConnections >= 1) {
-        // Only show the error bar if the first attempt has failed.
-        this.showSnackBar("Lost connection to the server: retrying...");
-      }
       this.failedConnections += 1;
-      this.tryOpenWebSocket(this.state.name, this.state.lobby);
+
+      // Calculate delay with exponential backoff: 1s, 2s, 4s, 8s, 16s (capped)
+      const baseDelay = 1000;
+      const delay = Math.min(baseDelay * Math.pow(2, this.failedConnections - 1), 16000);
+      const secondsLeft = Math.ceil(delay / 1000);
+
+      if (DEBUG) {
+        console.log(`Reconnecting in ${delay}ms (attempt ${this.failedConnections})`);
+      }
+
+      // Show reconnecting overlay with countdown
+      this.setState({
+        isReconnecting: true,
+        reconnectAttempt: this.failedConnections,
+        reconnectCountdown: secondsLeft,
+      });
+
+      // Start countdown timer
+      this.countdownInterval = setInterval(() => {
+        this.setState(prev => {
+          if (prev.reconnectCountdown <= 1) {
+            if (this.countdownInterval) {
+              clearInterval(this.countdownInterval);
+              this.countdownInterval = undefined;
+            }
+            return { reconnectCountdown: 0 };
+          }
+          return { reconnectCountdown: prev.reconnectCountdown - 1 };
+        });
+      }, 1000);
+
+      this.reconnectTimeout = setTimeout(() => {
+        this.setState({ isReconnecting: false });
+        this.tryOpenWebSocket(this.state.name, this.state.lobby);
+      }, delay);
     } else if (this.reconnectOnConnectionClosed) {
       if (DEBUG) {
-        console.log("Disconnecting from lobby.");
+        console.log("Disconnecting from lobby after max retries.");
       }
       this.setState({
+        isReconnecting: false,
         joinName: this.state.name,
         joinLobby: this.state.lobby,
-        joinError: "Disconnected from the lobby.",
+        joinError: "Disconnected from the lobby. Please try rejoining.",
         page: PAGE.LOGIN,
       });
       this.clearAnimationQueue();
     } else {
       // User purposefully closed the connection.
+      this.setState({ isReconnecting: false });
       if (this.gameOver) {
         // Do not reopen if the game is over, since disconnecting is intentional.
       } else {
@@ -434,8 +487,89 @@ class App extends Component<AppProps, AppState> {
     }
   }
 
+  /**
+   * Cancels the reconnection attempt and returns to home/login.
+   */
+  cancelReconnect() {
+    console.log("[App] cancelReconnect called");
+
+    // Clear timers
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = undefined;
+    }
+    if (this.countdownInterval) {
+      clearInterval(this.countdownInterval);
+      this.countdownInterval = undefined;
+    }
+
+    // Reset state
+    this.reconnectOnConnectionClosed = false;
+    this.failedConnections = 0;
+
+    // Clear the lobby cookie
+    Cookies.remove(COOKIE_LOBBY);
+
+    // Close websocket if still open
+    try {
+      if (this.websocket) {
+        this.websocket.onclose = () => {};
+        this.websocket.close();
+        this.websocket = undefined;
+      }
+    } catch (e) {
+      console.log("[App] Error closing websocket:", e);
+    }
+
+    // Reset UI state
+    this.setState({
+      isReconnecting: false,
+      reconnectAttempt: 0,
+      reconnectCountdown: 0,
+    });
+
+    // Call onBack to return to game hub
+    console.log("[App] Calling onBack, exists:", !!this.props.onBack);
+    if (this.props.onBack) {
+      this.props.onBack();
+    }
+  }
+
+  /**
+   * Renders the reconnecting overlay when connection is lost.
+   */
+  renderReconnectingOverlay() {
+    if (!this.state.isReconnecting) return null;
+
+    return (
+      <div className="reconnecting-overlay">
+        <div className="reconnecting-modal">
+          <h2>Connection Lost</h2>
+          <p>
+            Reconnecting in {this.state.reconnectCountdown}s...
+            <br />
+            <span style={{ opacity: 0.7, fontSize: "0.9em" }}>
+              Attempt {this.state.reconnectAttempt} of {MAX_FAILED_CONNECTIONS}
+            </span>
+          </p>
+          <button
+            className="neutral-btn"
+            onClick={this.cancelReconnect}
+            style={{ marginTop: "15px" }}
+          >
+            LEAVE GAME
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   async onWebSocketMessage(msg: MessageEvent) {
     this.failedConnections = 0;
+    // Clear reconnecting state on successful message
+    if (this.state.isReconnecting) {
+      this.setState({ isReconnecting: false, reconnectAttempt: 0, reconnectCountdown: 0 });
+    }
     let message = JSON.parse(msg.data);
     // Decode message contents as communication is encoded
     if (DEBUG) {
@@ -448,6 +582,32 @@ class App extends Component<AppProps, AppState> {
           icons: message[PARAM_ICON],
           page: PAGE.LOBBY,
         });
+
+        // Check if this user is the VIP (first user in lobby)
+        const isVIP = message[PARAM_USERNAMES]?.length > 0 &&
+                      message[PARAM_USERNAMES][0] === this.state.name;
+
+        // Handle theme from server
+        if (message.theme) {
+          if (isVIP) {
+            // VIP is the source of truth for theme - send our theme to server if it doesn't match
+            if (this.props.themeId && message.theme !== this.props.themeId) {
+              this.sendWSCommand({ command: WSCommandType.SET_THEME, theme: this.props.themeId });
+            }
+          } else {
+            // Non-VIP players receive theme from server
+            if (this.props.onThemeReceived) {
+              this.props.onThemeReceived(message.theme as ThemeId);
+            }
+            // Update local theme assets if theme changed
+            if (message.theme !== this.props.themeId) {
+              this.themeAssets = getThemeAssets(message.theme);
+              this.themeLayout = getThemeLayout(message.theme);
+              this.themeLabels = getThemeLabels(message.theme);
+            }
+          }
+        }
+
         if (message[PARAM_ICON][this.state.name] === defaultPortrait) {
           this.showChangeIconAlert();
         }
@@ -822,8 +982,31 @@ class App extends Component<AppProps, AppState> {
   }
 
   onClickLeaveLobby() {
-    this.websocket?.close();
+    // Clear any pending reconnect timeout
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = undefined;
+    }
+    if (this.countdownInterval) {
+      clearInterval(this.countdownInterval);
+      this.countdownInterval = undefined;
+    }
     this.reconnectOnConnectionClosed = false;
+
+    // Clear the lobby cookie so auto-rejoin doesn't kick in
+    Cookies.remove(COOKIE_LOBBY);
+
+    // Close websocket
+    if (this.websocket) {
+      this.websocket.onclose = () => {}; // Prevent onWebSocketClose from firing
+      this.websocket.close();
+      this.websocket = undefined;
+    }
+
+    // Return to home screen via parent callback
+    if (this.props.onBack) {
+      this.props.onBack();
+    }
   }
 
   onClickCopy() {
@@ -859,76 +1042,79 @@ class App extends Component<AppProps, AppState> {
       this.state.usernames.length > 0 &&
       this.state.usernames[0] === this.state.name;
     return (
-      <div className="App">
-        <CustomAlert show={this.state.showAlert}>
-          {this.state.alertContent}
-        </CustomAlert>
+      <>
+        {this.renderReconnectingOverlay()}
+        <div className="App">
+          <CustomAlert show={this.state.showAlert}>
+            {this.state.alertContent}
+          </CustomAlert>
 
-        <div
-          style={{ textAlign: "left", marginLeft: "20px", marginRight: "20px" }}
-        >
-          <div style={{ display: "flex", flexDirection: "row" }}>
-            <h2>LOBBY CODE: </h2>
-            <h2
-              style={{ marginLeft: "5px", color: "var(--textColorHighlight)" }}
-            >
-              {this.state.lobby}
-            </h2>
-          </div>
-
-          <p style={{ marginBottom: "2px" }}>
-            Copy and share this link to invite other players.
-          </p>
           <div
-            style={{
-              textAlign: "left",
-              display: "flex",
-              flexDirection: "row",
-              alignItems: "center",
-            }}
+            style={{ textAlign: "left", marginLeft: "20px", marginRight: "20px" }}
           >
-            <textarea
-              id="linkText"
-              readOnly={true}
-              value={"https://games.zitti.ro/secret-hitler/?lobby=" + this.state.lobby}
-            />
-            <button onClick={this.onClickCopy}>COPY</button>
-          </div>
-
-          <div id={"lobby-lower-container"}>
-            <div id={"lobby-player-area-container"}>
-              <div id={"lobby-player-text-choose-container"}>
-                <p id={"lobby-player-count-text"}>
-                  Players ({this.state.usernames.length}/10)
-                </p>
-                <button
-                  id={"lobby-change-icon-button"}
-                  onClick={this.onClickChangeIcon}
-                >
-                  CHANGE ICON
-                </button>
-              </div>
-              <div id={"lobby-player-container"}>{this.renderPlayerList()}</div>
-            </div>
-
-            <div id={"lobby-button-container"}>
-              {!isVIP && (
-                <p id={"lobby-vip-text"}>Only the VIP can start the game.</p>
-              )}
-              <button
-                onClick={this.onClickStartGame}
-                disabled={!isVIP || !this.shouldStartGameBeEnabled()}
+            <div style={{ display: "flex", flexDirection: "row" }}>
+              <h2>LOBBY CODE: </h2>
+              <h2
+                style={{ marginLeft: "5px", color: "var(--textColorHighlight)" }}
               >
-                START GAME
-              </button>
-              <button onClick={this.onClickLeaveLobby}>LEAVE LOBBY</button>
+                {this.state.lobby}
+              </h2>
+            </div>
+
+            <p style={{ marginBottom: "2px" }}>
+              Copy and share this link to invite other players.
+            </p>
+            <div
+              style={{
+                textAlign: "left",
+                display: "flex",
+                flexDirection: "row",
+                alignItems: "center",
+              }}
+            >
+              <textarea
+                id="linkText"
+                readOnly={true}
+                value={"https://games.zitti.ro/secret-hitler/?lobby=" + this.state.lobby}
+              />
+              <button onClick={this.onClickCopy}>COPY</button>
+            </div>
+
+            <div id={"lobby-lower-container"}>
+              <div id={"lobby-player-area-container"}>
+                <div id={"lobby-player-text-choose-container"}>
+                  <p id={"lobby-player-count-text"}>
+                    Players ({this.state.usernames.length}/10)
+                  </p>
+                  <button
+                    id={"lobby-change-icon-button"}
+                    onClick={this.onClickChangeIcon}
+                  >
+                    CHANGE ICON
+                  </button>
+                </div>
+                <div id={"lobby-player-container"}>{this.renderPlayerList()}</div>
+              </div>
+
+              <div id={"lobby-button-container"}>
+                {!isVIP && (
+                  <p id={"lobby-vip-text"}>Only the VIP can start the game.</p>
+                )}
+                <button
+                  onClick={this.onClickStartGame}
+                  disabled={!isVIP || !this.shouldStartGameBeEnabled()}
+                >
+                  START GAME
+                </button>
+                <button onClick={this.onClickLeaveLobby}>LEAVE LOBBY</button>
+              </div>
             </div>
           </div>
+          <div style={{ textAlign: "center" }}>
+            <div id="snackbar">{this.state.snackbarMessage}</div>
+          </div>
         </div>
-        <div style={{ textAlign: "center" }}>
-          <div id="snackbar">{this.state.snackbarMessage}</div>
-        </div>
-      </div>
+      </>
     );
   }
 
@@ -1657,94 +1843,97 @@ class App extends Component<AppProps, AppState> {
    */
   renderGamePage() {
     return (
-      <div className="App" style={{ textAlign: "center" }}>
-        <CustomAlert show={this.state.showAlert}>
-          {this.state.alertContent}
-        </CustomAlert>
+      <>
+        {this.renderReconnectingOverlay()}
+        <div className="App" style={{ textAlign: "center" }}>
+          <CustomAlert show={this.state.showAlert}>
+            {this.state.alertContent}
+          </CustomAlert>
 
-        <EventBar
-          show={this.state.showEventBar}
-          message={this.state.eventBarMessage}
-        />
-
-        <div style={{ backgroundColor: "var(--backgroundDark)" }}>
-          <PlayerDisplay
-            gameState={this.state.gameState}
-            user={this.state.name}
-            showVotes={this.state.showVotes}
-            showBusy={this.state.allAnimationsFinished} // Only show busy when there isn't an active animation.
-            playerDisabledFilter={DISABLE_EXECUTED_PLAYERS}
+          <EventBar
+            show={this.state.showEventBar}
+            message={this.state.eventBarMessage}
           />
-        </div>
 
-        <StatusBar>{this.state.statusBarText}</StatusBar>
+          <div style={{ backgroundColor: "var(--backgroundDark)" }}>
+            <PlayerDisplay
+              gameState={this.state.gameState}
+              user={this.state.name}
+              showVotes={this.state.showVotes}
+              showBusy={this.state.allAnimationsFinished} // Only show busy when there isn't an active animation.
+              playerDisabledFilter={DISABLE_EXECUTED_PLAYERS}
+            />
+          </div>
 
-        <div style={{ display: "inline-block" }}>
-          <div
-            id={"Board Layout"}
-            style={{
-              alignItems: "center",
-              display: "flex",
-              flexDirection: "column",
-              margin: "10px auto",
-            }}
-          >
+          <StatusBar>{this.state.statusBarText}</StatusBar>
+
+          <div style={{ display: "inline-block" }}>
             <div
+              id={"Board Layout"}
               style={{
-                display: "flex",
-                flexDirection: "row",
                 alignItems: "center",
-                marginTop: "15px",
+                display: "flex",
+                flexDirection: "column",
+                margin: "10px auto",
               }}
             >
-              <Deck cardCount={this.state.drawDeckSize} deckType={"DRAW"} themeAssets={this.themeAssets} />
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "row",
+                  alignItems: "center",
+                  marginTop: "15px",
+                }}
+              >
+                <Deck cardCount={this.state.drawDeckSize} deckType={"DRAW"} themeAssets={this.themeAssets} />
 
-              <div style={{ margin: "auto auto" }}>
-                <button
-                  disabled={
-                    this.state.gameState[PARAM_STATE] !==
-                      STATE_POST_LEGISLATIVE ||
-                    this.state.name !== this.state.gameState[PARAM_PRESIDENT]
-                  }
-                  onClick={() => {
-                    this.sendWSCommand({ command: WSCommandType.END_TERM });
-                  }}
-                >
-                  {" "}
-                  END TERM
-                </button>
+                <div style={{ margin: "auto auto" }}>
+                  <button
+                    disabled={
+                      this.state.gameState[PARAM_STATE] !==
+                        STATE_POST_LEGISLATIVE ||
+                      this.state.name !== this.state.gameState[PARAM_PRESIDENT]
+                    }
+                    onClick={() => {
+                      this.sendWSCommand({ command: WSCommandType.END_TERM });
+                    }}
+                  >
+                    {" "}
+                    END TERM
+                  </button>
 
-                <PlayerPolicyStatus
-                  numFascistPolicies={this.state.fascistPolicies}
-                  numLiberalPolicies={this.state.liberalPolicies}
-                  playerCount={this.state.gameState.playerOrder.length}
-                  themeLabels={this.themeLabels}
+                  <PlayerPolicyStatus
+                    numFascistPolicies={this.state.fascistPolicies}
+                    numLiberalPolicies={this.state.liberalPolicies}
+                    playerCount={this.state.gameState.playerOrder.length}
+                    themeLabels={this.themeLabels}
+                  />
+                </div>
+
+                <Deck
+                  cardCount={this.state.discardDeckSize}
+                  deckType={"DISCARD"}
+                  themeAssets={this.themeAssets}
                 />
               </div>
 
-              <Deck
-                cardCount={this.state.discardDeckSize}
-                deckType={"DISCARD"}
+              <Board
+                numPlayers={this.state.gameState.playerOrder.length}
+                numFascistPolicies={this.state.fascistPolicies}
+                numLiberalPolicies={this.state.liberalPolicies}
+                electionTracker={this.state.electionTracker}
                 themeAssets={this.themeAssets}
+                themeLayout={this.themeLayout}
+                themeLabels={this.themeLabels}
               />
             </div>
+          </div>
 
-            <Board
-              numPlayers={this.state.gameState.playerOrder.length}
-              numFascistPolicies={this.state.fascistPolicies}
-              numLiberalPolicies={this.state.liberalPolicies}
-              electionTracker={this.state.electionTracker}
-              themeAssets={this.themeAssets}
-              themeLayout={this.themeLayout}
-              themeLabels={this.themeLabels}
-            />
+          <div style={{ textAlign: "center" }}>
+            <div id="snackbar">{this.state.snackbarMessage}</div>
           </div>
         </div>
-
-        <div style={{ textAlign: "center" }}>
-          <div id="snackbar">{this.state.snackbarMessage}</div>
-        </div>
-      </div>
+      </>
     );
   }
 
