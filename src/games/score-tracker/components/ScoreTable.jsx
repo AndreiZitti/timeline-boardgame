@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { AddRoundModal } from "./AddRoundModal";
 import { WhistBidModal } from "./WhistBidModal";
 
@@ -28,6 +28,47 @@ export function ScoreTable({
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingRound, setEditingRound] = useState(null);
   const [whistModalRound, setWhistModalRound] = useState(null);
+  const addRowRef = useRef(null);
+  const whistTableRef = useRef(null);
+  const whistRowRefs = useRef({});
+
+  // Auto-scroll to add row when rounds change (Septica)
+  useEffect(() => {
+    if (addRowRef.current && gameType === "septica") {
+      addRowRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
+    }
+  }, [rounds.length, gameType]);
+
+  // Auto-scroll for Whist: keep active round centered when in middle section
+  useEffect(() => {
+    if (gameType !== "whist" || !whistTableRef.current || whistActiveRoundIndex < 0) return;
+
+    const wrapper = whistTableRef.current;
+    const activeRow = whistRowRefs.current[whistActiveRoundIndex];
+    if (!activeRow) return;
+
+    const wrapperHeight = wrapper.clientHeight;
+    const wrapperScrollHeight = wrapper.scrollHeight;
+    const rowTop = activeRow.offsetTop;
+    const rowHeight = activeRow.offsetHeight;
+    const headerHeight = wrapper.querySelector('thead')?.offsetHeight || 0;
+
+    // Calculate where we want the row to be (center of visible area)
+    const visibleHeight = wrapperHeight - headerHeight;
+    const targetScrollTop = rowTop - headerHeight - (visibleHeight / 2) + (rowHeight / 2);
+
+    // Clamp to valid scroll range
+    const maxScroll = wrapperScrollHeight - wrapperHeight;
+    const clampedScrollTop = Math.max(0, Math.min(targetScrollTop, maxScroll));
+
+    // Only scroll if we're past the "top" section (first few rows visible without scroll)
+    // and not yet at the very end
+    const rowsVisibleWithoutScroll = Math.floor(visibleHeight / rowHeight / 2);
+
+    if (whistActiveRoundIndex >= rowsVisibleWithoutScroll) {
+      wrapper.scrollTo({ top: clampedScrollTop, behavior: "smooth" });
+    }
+  }, [whistActiveRoundIndex, gameType]);
 
   const isWhist = gameType === "whist";
 
@@ -186,7 +227,7 @@ export function ScoreTable({
           )}
         </div>
 
-        <div className="score-table-wrapper whist-full-table">
+        <div ref={whistTableRef} className="score-table-wrapper whist-full-table">
           <table className="score-table whist-table-simple">
             <thead>
               <tr>
@@ -220,6 +261,7 @@ export function ScoreTable({
                 return (
                   <tr
                     key={rowIndex}
+                    ref={(el) => { whistRowRefs.current[rowIndex] = el; }}
                     className={`whist-row-simple ${round.phase} ${isActive ? 'active-round' : ''}`}
                     onClick={() => isClickable && handleWhistRowClick(round, rowIndex)}
                   >
@@ -275,7 +317,144 @@ export function ScoreTable({
     );
   }
 
+  const isSeptica = gameType === "septica";
+
+  // Calculate running totals for each round (for Septica display)
+  const getRunningTotals = (upToIndex) => {
+    return columnHeaders.map((_, colIndex) => {
+      let total = 0;
+      for (let i = 0; i <= upToIndex; i++) {
+        total += rounds[i]?.scores[colIndex] || 0;
+      }
+      return total;
+    });
+  };
+
+  // Get alternating player display for team games (A1, B1, A2, B2)
+  const getAlternatingPlayers = () => {
+    if (!isTeamGame || teams.length < 2) return [];
+    const team1Players = teams[0]?.slice(1) || [];
+    const team2Players = teams[1]?.slice(1) || [];
+    const maxLen = Math.max(team1Players.length, team2Players.length);
+    const result = [];
+    for (let i = 0; i < maxLen; i++) {
+      if (team1Players[i]) result.push({ name: team1Players[i], team: teams[0][0] });
+      if (team2Players[i]) result.push({ name: team2Players[i], team: teams[1][0] });
+    }
+    return result;
+  };
+
   // Non-Whist games (Septica, Rentz, etc.)
+  // Septica gets special treatment with inline add row and running totals
+  if (isSeptica) {
+    const alternatingPlayers = getAlternatingPlayers();
+    // Active player cycles through seats after each round
+    const activePlayerIndex = alternatingPlayers.length > 0
+      ? rounds.length % alternatingPlayers.length
+      : 0;
+
+    return (
+      <div className="score-table-container septica-container">
+        <div className="score-table-header">
+          <button className="btn-back-menu" onClick={onBackToMenu}>
+            &larr; Score Tracker
+          </button>
+          <span className="score-table-title">{config.name}</span>
+          <button className="btn-reset" onClick={onReset}>
+            Reset
+          </button>
+        </div>
+
+        {/* Show alternating player order with active player highlighted */}
+        <div className="septica-players-bar">
+          {alternatingPlayers.map((p, i) => (
+            <span
+              key={i}
+              className={`septica-player-chip ${i === activePlayerIndex ? 'active' : ''}`}
+            >
+              {p.name}
+              <span className="septica-player-team">({p.team})</span>
+            </span>
+          ))}
+        </div>
+
+        <div className="score-table-wrapper septica-table-wrapper">
+          <table className="score-table septica-table">
+            <thead>
+              <tr>
+                <th className="round-col">#</th>
+                {columnHeaders.map((name, i) => (
+                  <th
+                    key={i}
+                    className={`player-col ${i === leaderIndex && rounds.length > 0 ? "leader" : ""}`}
+                  >
+                    {name}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rounds.map((round, rowIndex) => {
+                const runningTotals = getRunningTotals(rowIndex);
+                return (
+                  <tr key={round.id} onClick={() => handleCellClick(round)}>
+                    <td className="round-col">{rowIndex + 1}</td>
+                    {round.scores.map((score, i) => (
+                      <td
+                        key={i}
+                        className={`total-col ${runningTotals[i] < 0 ? "negative" : ""} ${i === leaderIndex && rounds.length > 0 ? "leader" : ""}`}
+                      >
+                        {runningTotals[i]}
+                        <span className={`score-delta ${score < 0 ? "negative" : "positive"}`}>
+                          {score >= 0 ? "+" : ""}{score}
+                        </span>
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
+              {/* Inline add row - always visible at bottom */}
+              <tr ref={addRowRef} className="septica-add-row" onClick={() => setShowAddModal(true)}>
+                <td className="round-col">{rounds.length + 1}</td>
+                <td colSpan={columnHeaders.length} className="add-row-cell">
+                  <span className="add-row-btn">+ Add Round</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {showAddModal && (
+          <AddRoundModal
+            gameType={gameType}
+            players={players}
+            teams={teams}
+            isTeamGame={isTeamGame}
+            config={config}
+            onSave={handleAddRound}
+            onClose={() => setShowAddModal(false)}
+          />
+        )}
+
+        {editingRound && (
+          <AddRoundModal
+            gameType={gameType}
+            players={players}
+            teams={teams}
+            isTeamGame={isTeamGame}
+            config={config}
+            initialScores={editingRound.scores}
+            initialData={editingRound.data}
+            onSave={handleEditRound}
+            onClose={() => setEditingRound(null)}
+            isEditing
+          />
+        )}
+      </div>
+    );
+  }
+
+  // Other non-Whist games (Rentz, etc.) - original layout
   return (
     <div className="score-table-container">
       <div className="score-table-header">

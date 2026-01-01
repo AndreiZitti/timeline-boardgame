@@ -61,14 +61,18 @@ export function PlayerSetup({ config, onStart, onStartTeamGame }) {
     : names.slice(0, playerCount).every((n) => n.trim().length > 0);
 
   if (isTeamGame) {
+    // For Septica: show alternating seating order (A1, B1, A2, B2)
+    const isSeptica = config.name === "Septica";
+
     return (
       <div className="player-setup">
         <h2 className="player-setup-title">{config.name}</h2>
         <p className="setup-subtitle">2 teams of 2 players each</p>
 
-        <div className="teams-setup">
+        {/* Team name inputs */}
+        <div className="teams-names-row">
           {teams.map((team, teamIndex) => (
-            <div key={teamIndex} className="team-card">
+            <div key={teamIndex} className="team-name-card">
               <input
                 type="text"
                 className="team-name-input"
@@ -76,21 +80,54 @@ export function PlayerSetup({ config, onStart, onStartTeamGame }) {
                 value={team.name}
                 onChange={(e) => handleTeamNameChange(teamIndex, e.target.value)}
               />
-              <div className="team-players">
-                {team.players.map((player, playerIndex) => (
-                  <input
-                    key={playerIndex}
-                    type="text"
-                    className="team-player-input"
-                    placeholder={`Player ${teamIndex * 2 + playerIndex + 1}`}
-                    value={player}
-                    onChange={(e) => handleTeamPlayerChange(teamIndex, playerIndex, e.target.value)}
-                  />
-                ))}
-              </div>
             </div>
           ))}
         </div>
+
+        {/* Seating order - alternating for Septica */}
+        {isSeptica ? (
+          <>
+            <p className="seating-label">Seating order (clockwise):</p>
+            <div className="seating-order">
+              {[0, 1, 0, 1].map((teamIdx, seatIdx) => {
+                const playerIdx = seatIdx < 2 ? 0 : 1;
+                const actualTeamIdx = seatIdx % 2;
+                return (
+                  <div key={seatIdx} className="seating-slot">
+                    <span className="seat-number">{seatIdx + 1}</span>
+                    <input
+                      type="text"
+                      className="team-player-input"
+                      placeholder={`${teams[actualTeamIdx].name || `Team ${actualTeamIdx + 1}`} P${playerIdx + 1}`}
+                      value={teams[actualTeamIdx].players[playerIdx]}
+                      onChange={(e) => handleTeamPlayerChange(actualTeamIdx, playerIdx, e.target.value)}
+                    />
+                    <span className="seat-team">{teams[actualTeamIdx].name || `Team ${actualTeamIdx + 1}`}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        ) : (
+          <div className="teams-setup">
+            {teams.map((team, teamIndex) => (
+              <div key={teamIndex} className="team-card">
+                <div className="team-players">
+                  {team.players.map((player, playerIndex) => (
+                    <input
+                      key={playerIndex}
+                      type="text"
+                      className="team-player-input"
+                      placeholder={`Player ${teamIndex * 2 + playerIndex + 1}`}
+                      value={player}
+                      onChange={(e) => handleTeamPlayerChange(teamIndex, playerIndex, e.target.value)}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         <div className="button-group">
           <button className="btn btn-primary" onClick={handleStart} disabled={!canStart}>

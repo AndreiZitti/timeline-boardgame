@@ -1284,3 +1284,254 @@
 .whist-bid-modal .modal-footer .btn-text:hover {
   color: var(--text-primary);
 }
+
+/* ============================================
+   SEPTICA STYLES (Whist-like layout)
+   ============================================ */
+
+.septica-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Alternating player order bar */
+.septica-players-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  background: var(--bg-card);
+  border-radius: var(--radius-sm);
+}
+
+.septica-player-chip {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  padding: 4px 10px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.septica-player-chip.active {
+  background: var(--tracker-accent);
+  color: #000;
+  border-color: var(--tracker-accent);
+  box-shadow: 0 0 20px var(--tracker-accent-glow), 0 0 40px var(--tracker-accent-glow);
+  font-weight: 600;
+}
+
+.septica-player-chip.active .septica-player-team {
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.first-badge {
+  display: inline-block;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: rgba(0, 0, 0, 0.3);
+  color: #000;
+  padding: 2px 4px;
+  border-radius: 3px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.septica-player-team {
+  font-size: 0.6875rem;
+  font-weight: 400;
+  color: var(--text-muted);
+  margin-left: 4px;
+  transition: color 0.3s ease;
+}
+
+/* Septica table wrapper with scrolling */
+.septica-table-wrapper {
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: auto;
+  margin: 0 -20px;
+  padding: 0 20px;
+  max-height: calc(100vh - 220px);
+}
+
+/* Septica table with sticky header */
+.septica-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.septica-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.septica-table th {
+  background: var(--bg-base);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-secondary);
+  padding: 12px 16px;
+  border-bottom: 2px solid var(--tracker-accent);
+}
+
+.septica-table th.player-col {
+  min-width: 100px;
+}
+
+.septica-table th.player-col.leader {
+  color: var(--tracker-accent);
+}
+
+.septica-table td {
+  padding: 14px 16px;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+}
+
+.septica-table tbody tr {
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.septica-table tbody tr:hover:not(.septica-add-row) {
+  background: var(--bg-card);
+}
+
+/* Running total cells in Septica */
+.septica-table .total-col {
+  font-weight: 700;
+  font-size: 1.25rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  position: relative;
+}
+
+.septica-table .total-col.negative {
+  color: #ef4444;
+}
+
+.septica-table .total-col.leader {
+  color: var(--tracker-accent);
+}
+
+/* Inline add row */
+.septica-add-row {
+  cursor: pointer;
+  background: transparent;
+  border: none;
+}
+
+.septica-add-row:hover {
+  background: var(--tracker-accent-subtle) !important;
+}
+
+.septica-add-row .round-col {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.add-row-cell {
+  text-align: center !important;
+  padding: 16px !important;
+}
+
+.add-row-btn {
+  display: inline-block;
+  padding: 10px 24px;
+  background: var(--tracker-accent);
+  color: #000;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  transition: all 0.15s ease;
+  box-shadow: 0 0 20px var(--tracker-accent-glow);
+}
+
+.septica-add-row:hover .add-row-btn {
+  filter: brightness(1.1);
+  transform: scale(1.02);
+}
+
+/* ============================================
+   SEPTICA PLAYER SETUP (Seating Order)
+   ============================================ */
+
+.teams-names-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.team-name-card {
+  flex: 1;
+}
+
+.team-name-card .team-name-input {
+  margin-bottom: 0;
+}
+
+.seating-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.seating-order {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.seating-slot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.seat-number {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--tracker-accent-subtle);
+  color: var(--tracker-accent);
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.seating-slot .team-player-input {
+  flex: 1;
+  margin-bottom: 0;
+  background: var(--bg-elevated);
+}
+
+.seat-team {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  min-width: 60px;
+  text-align: right;
+}
