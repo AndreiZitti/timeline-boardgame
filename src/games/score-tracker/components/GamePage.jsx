@@ -30,6 +30,12 @@ export function GamePage({ gameType }) {
     rentzIsComplete,
     rentzCurrentDealerIndex,
     rentzDealerGames,
+    // General-specific
+    generalData,
+    generalCurrentPlayer,
+    generalTotals,
+    generalLeaderIndex,
+    generalCanUndo,
     startGame,
     startTeamGame,
     addRound,
@@ -41,6 +47,10 @@ export function GamePage({ gameType }) {
     selectRentzMiniGame,
     updateRentzScores,
     revertRentzToSelecting,
+    addGeneralScore,
+    undoGeneralScore,
+    editGeneralScore,
+    deleteGeneralRound,
     newGame,
     GAME_CONFIG,
     RENTZ_MINI_GAMES,
@@ -108,6 +118,11 @@ export function GamePage({ gameType }) {
           rentzCurrentDealerIndex={rentzCurrentDealerIndex}
           rentzDealerGames={rentzDealerGames}
           rentzMiniGames={RENTZ_MINI_GAMES}
+          generalData={generalData}
+          generalCurrentPlayer={generalCurrentPlayer}
+          generalTotals={generalTotals}
+          generalLeaderIndex={generalLeaderIndex}
+          generalCanUndo={generalCanUndo}
           onAddRound={addRound}
           onUpdateRound={updateRound}
           onDeleteRound={deleteRound}
@@ -117,6 +132,10 @@ export function GamePage({ gameType }) {
           onSelectRentzMiniGame={selectRentzMiniGame}
           onUpdateRentzScores={updateRentzScores}
           onRevertRentzToSelecting={revertRentzToSelecting}
+          onAddGeneralScore={addGeneralScore}
+          onUndoGeneralScore={undoGeneralScore}
+          onEditGeneralScore={editGeneralScore}
+          onDeleteGeneralRound={deleteGeneralRound}
           onReset={handleReset}
           onBackToMenu={() => router.push("/score-tracker")}
         />

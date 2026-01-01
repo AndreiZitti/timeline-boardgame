@@ -22,6 +22,11 @@ const GAME_CONFIG = {
     minPlayers: 3,
     maxPlayers: 5
   },
+  general: {
+    name: "General",
+    minPlayers: 2,
+    maxPlayers: 8,
+  },
 };
 
 export default function ScoreTrackerPage() {

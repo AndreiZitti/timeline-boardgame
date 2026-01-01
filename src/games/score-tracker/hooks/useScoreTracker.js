@@ -182,6 +182,11 @@ const GAME_CONFIG = {
     maxPlayers: 6,
   },
   rentz: { name: "Rentz", minPlayers: 3, maxPlayers: 6 },
+  general: {
+    name: "General",
+    minPlayers: 2,
+    maxPlayers: 8,
+  },
 };
 
 function loadFromStorage(gameType) {
@@ -215,6 +220,9 @@ export function useScoreTracker(initialGameType = null) {
   const [whistData, setWhistData] = useState([]); // For Whist: pre-populated rounds with phases
   const [rentzConfig, setRentzConfig] = useState(DEFAULT_RENTZ_CONFIG); // Rentz scoring config
   const [rentzData, setRentzData] = useState([]); // For Rentz: dealers and mini-games
+  // General tracker state
+  const [generalData, setGeneralData] = useState([]); // Array of rounds: [{scores: [p1, p2, ...], complete: bool}]
+  const [generalCurrentPlayer, setGeneralCurrentPlayer] = useState(0); // Index of current player within current round
   const [phase, setPhase] = useState(initialGameType ? "setup" : "select");
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -234,6 +242,8 @@ export function useScoreTracker(initialGameType = null) {
       setWhistData(stored.whistData || []);
       setRentzConfig(stored.rentzConfig || DEFAULT_RENTZ_CONFIG);
       setRentzData(stored.rentzData || []);
+      setGeneralData(stored.generalData || []);
+      setGeneralCurrentPlayer(stored.generalCurrentPlayer || 0);
       if (stored.players?.length > 0 || stored.teams?.length > 0) {
         setPhase("playing");
       }
@@ -255,10 +265,12 @@ export function useScoreTracker(initialGameType = null) {
         whistData,
         rentzConfig,
         rentzData,
+        generalData,
+        generalCurrentPlayer,
         updatedAt: new Date().toISOString(),
       });
     }
-  }, [isLoaded, initialGameType, gameType, players, teams, rounds, whistData, rentzConfig, rentzData]);
+  }, [isLoaded, initialGameType, gameType, players, teams, rounds, whistData, rentzConfig, rentzData, generalData, generalCurrentPlayer]);
 
   const selectGame = useCallback((type) => {
     setGameType(type);
@@ -287,6 +299,15 @@ export function useScoreTracker(initialGameType = null) {
       setRentzData(generateRentzData(playerNames.length));
     } else {
       setRentzData([]);
+    }
+
+    // Initialize general tracker
+    if (type === "general") {
+      setGeneralData([]);
+      setGeneralCurrentPlayer(0);
+    } else {
+      setGeneralData([]);
+      setGeneralCurrentPlayer(0);
     }
 
     setPhase("playing");
@@ -442,6 +463,136 @@ export function useScoreTracker(initialGameType = null) {
     return Object.keys(RENTZ_MINI_GAMES).filter(game => !playedGames.includes(game));
   }, [rentzData]);
 
+  // General: Add a score for the current player
+  const addGeneralScore = useCallback((score) => {
+    setGeneralData((prev) => {
+      const playerCount = players.length;
+      if (playerCount === 0) return prev;
+
+      const newData = [...prev];
+      const currentRoundIndex = newData.length > 0 && !newData[newData.length - 1].complete
+        ? newData.length - 1
+        : -1;
+
+      if (currentRoundIndex === -1) {
+        // Start new round
+        const newRound = {
+          id: Date.now(),
+          scores: Array(playerCount).fill(null),
+          complete: false,
+        };
+        newRound.scores[0] = score;
+        newData.push(newRound);
+        setGeneralCurrentPlayer(playerCount > 1 ? 1 : 0);
+      } else {
+        // Add to current round
+        const round = { ...newData[currentRoundIndex] };
+        round.scores = [...round.scores];
+
+        // Find next empty slot
+        const nextEmptyIndex = round.scores.findIndex(s => s === null);
+        if (nextEmptyIndex !== -1) {
+          round.scores[nextEmptyIndex] = score;
+
+          // Check if round is complete
+          const nextEmpty = round.scores.findIndex(s => s === null);
+          if (nextEmpty === -1) {
+            round.complete = true;
+            setGeneralCurrentPlayer(0);
+          } else {
+            setGeneralCurrentPlayer(nextEmpty);
+          }
+          newData[currentRoundIndex] = round;
+        }
+      }
+
+      return newData;
+    });
+  }, [players.length]);
+
+  // General: Undo last score entry
+  const undoGeneralScore = useCallback(() => {
+    setGeneralData((prev) => {
+      if (prev.length === 0) return prev;
+
+      const newData = [...prev];
+      const lastRoundIndex = newData.length - 1;
+      const lastRound = { ...newData[lastRoundIndex] };
+      lastRound.scores = [...lastRound.scores];
+
+      if (lastRound.complete) {
+        // Uncomplete the round and remove last score
+        lastRound.complete = false;
+        const lastFilledIndex = lastRound.scores.length - 1;
+        lastRound.scores[lastFilledIndex] = null;
+        setGeneralCurrentPlayer(lastFilledIndex);
+        newData[lastRoundIndex] = lastRound;
+      } else {
+        // Find last filled score and remove it
+        let lastFilledIndex = -1;
+        for (let i = lastRound.scores.length - 1; i >= 0; i--) {
+          if (lastRound.scores[i] !== null) {
+            lastFilledIndex = i;
+            break;
+          }
+        }
+
+        if (lastFilledIndex === 0) {
+          // Remove the entire round if only first score was entered
+          newData.pop();
+          if (newData.length > 0 && newData[newData.length - 1].complete) {
+            // Previous round is complete, next score starts new round
+            setGeneralCurrentPlayer(0);
+          } else if (newData.length > 0) {
+            // Previous round is incomplete, find its next empty slot
+            const prevRound = newData[newData.length - 1];
+            const nextEmpty = prevRound.scores.findIndex(s => s === null);
+            setGeneralCurrentPlayer(nextEmpty === -1 ? 0 : nextEmpty);
+          } else {
+            setGeneralCurrentPlayer(0);
+          }
+        } else if (lastFilledIndex > 0) {
+          lastRound.scores[lastFilledIndex] = null;
+          setGeneralCurrentPlayer(lastFilledIndex);
+          newData[lastRoundIndex] = lastRound;
+        }
+      }
+
+      return newData;
+    });
+  }, []);
+
+  // General: Edit a specific score
+  const editGeneralScore = useCallback((roundIndex, playerIndex, newScore) => {
+    setGeneralData((prev) => {
+      if (roundIndex >= prev.length) return prev;
+      const newData = [...prev];
+      const round = { ...newData[roundIndex] };
+      round.scores = [...round.scores];
+      round.scores[playerIndex] = newScore;
+      newData[roundIndex] = round;
+      return newData;
+    });
+  }, []);
+
+  // General: Delete a round
+  const deleteGeneralRound = useCallback((roundIndex) => {
+    setGeneralData((prev) => {
+      const newData = prev.filter((_, i) => i !== roundIndex);
+      // Recalculate current player if needed
+      if (newData.length === 0) {
+        setGeneralCurrentPlayer(0);
+      } else if (!newData[newData.length - 1].complete) {
+        const lastRound = newData[newData.length - 1];
+        const nextEmpty = lastRound.scores.findIndex(s => s === null);
+        setGeneralCurrentPlayer(nextEmpty === -1 ? 0 : nextEmpty);
+      } else {
+        setGeneralCurrentPlayer(0);
+      }
+      return newData;
+    });
+  }, []);
+
   const newGame = useCallback(() => {
     const typeToRemove = initialGameType || gameType;
     setPlayers([]);
@@ -450,6 +601,8 @@ export function useScoreTracker(initialGameType = null) {
     setWhistData([]);
     setRentzData([]);
     setRentzConfig(DEFAULT_RENTZ_CONFIG);
+    setGeneralData([]);
+    setGeneralCurrentPlayer(0);
     setPhase("setup");
     if (typeToRemove) {
       saveToStorage(typeToRemove, null);
@@ -508,6 +661,19 @@ export function useScoreTracker(initialGameType = null) {
     }, {});
   });
 
+  // General-specific computed values
+  const generalTotals = players.map((_, playerIndex) =>
+    generalData.reduce((sum, round) => sum + (round.scores?.[playerIndex] || 0), 0)
+  );
+  const generalLeaderIndex = generalTotals.length > 0
+    ? generalTotals.reduce((maxIdx, val, idx, arr) => (val > arr[maxIdx] ? idx : maxIdx), 0)
+    : -1;
+  // Check if there are any scores to determine if we can undo
+  const generalCanUndo = generalData.length > 0 && (
+    !generalData[generalData.length - 1].complete ||
+    generalData[generalData.length - 1].scores.some(s => s !== null)
+  );
+
   return {
     // State
     gameType,
@@ -517,6 +683,8 @@ export function useScoreTracker(initialGameType = null) {
     whistData,
     rentzConfig,
     rentzData,
+    generalData,
+    generalCurrentPlayer,
     phase,
     isLoaded,
     config,
@@ -538,6 +706,11 @@ export function useScoreTracker(initialGameType = null) {
     rentzCurrentDealerIndex,
     rentzDealerGames,
 
+    // General-specific computed
+    generalTotals,
+    generalLeaderIndex,
+    generalCanUndo,
+
     // Actions
     selectGame,
     startGame,
@@ -552,6 +725,10 @@ export function useScoreTracker(initialGameType = null) {
     updateRentzScores,
     revertRentzToSelecting,
     getRentzRemainingGames,
+    addGeneralScore,
+    undoGeneralScore,
+    editGeneralScore,
+    deleteGeneralRound,
     newGame,
     goBack,
 

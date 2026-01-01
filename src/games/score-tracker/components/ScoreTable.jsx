@@ -3,6 +3,7 @@ import { AddRoundModal } from "./AddRoundModal";
 import { WhistBidModal } from "./WhistBidModal";
 import { RentzGameGrid } from "./RentzGameGrid";
 import { RentzScoringModal } from "./RentzScoringModal";
+import { GeneralScoreInput } from "./GeneralScoreInput";
 
 export function ScoreTable({
   gameType,
@@ -27,6 +28,12 @@ export function ScoreTable({
   rentzCurrentDealerIndex,
   rentzDealerGames,
   rentzMiniGames,
+  // General-specific props
+  generalData,
+  generalCurrentPlayer,
+  generalTotals,
+  generalLeaderIndex,
+  generalCanUndo,
   onAddRound,
   onUpdateRound,
   onDeleteRound,
@@ -36,6 +43,10 @@ export function ScoreTable({
   onSelectRentzMiniGame,
   onUpdateRentzScores,
   onRevertRentzToSelecting,
+  onAddGeneralScore,
+  onUndoGeneralScore,
+  onEditGeneralScore,
+  onDeleteGeneralRound,
   onReset,
   onBackToMenu,
 }) {
@@ -539,6 +550,130 @@ export function ScoreTable({
             }}
           />
         )}
+      </div>
+    );
+  }
+
+  // General game rendering
+  const isGeneral = gameType === "general";
+
+  if (isGeneral && generalData !== undefined) {
+    const currentPlayerName = players[generalCurrentPlayer] || "Player 1";
+    const currentPlayerTotal = generalTotals?.[generalCurrentPlayer] || 0;
+
+    // Calculate running totals for general
+    const getGeneralRunningTotals = (upToRoundIndex) => {
+      return players.map((_, playerIndex) => {
+        let total = 0;
+        for (let i = 0; i <= upToRoundIndex; i++) {
+          const score = generalData[i]?.scores?.[playerIndex];
+          if (score !== null && score !== undefined) {
+            total += score;
+          }
+        }
+        return total;
+      });
+    };
+
+    return (
+      <div className="score-table-container general-container">
+        <div className="score-table-header">
+          <button className="btn-back-menu" onClick={onBackToMenu}>
+            &larr; Score Tracker
+          </button>
+          <span className="score-table-title">{config.name}</span>
+          <button className="btn-reset" onClick={onReset}>
+            Reset
+          </button>
+        </div>
+
+        {/* Score input section */}
+        <GeneralScoreInput
+          currentPlayerName={currentPlayerName}
+          currentPlayerTotal={currentPlayerTotal}
+          onAddScore={onAddGeneralScore}
+          onUndo={onUndoGeneralScore}
+          canUndo={generalCanUndo}
+        />
+
+        {/* Score table */}
+        <div className="score-table-wrapper general-table-wrapper">
+          <table className="score-table general-table">
+            <thead>
+              <tr>
+                <th className="round-col">#</th>
+                {players.map((name, i) => (
+                  <th
+                    key={i}
+                    className={`player-col ${i === generalLeaderIndex && generalData.length > 0 ? "leader" : ""} ${i === generalCurrentPlayer ? "current" : ""}`}
+                  >
+                    {name}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {generalData.map((round, rowIndex) => {
+                const runningTotals = getGeneralRunningTotals(rowIndex);
+                const isIncomplete = !round.complete;
+
+                return (
+                  <tr
+                    key={round.id || rowIndex}
+                    className={`general-row ${isIncomplete ? "incomplete" : ""}`}
+                  >
+                    <td className="round-col">{rowIndex + 1}</td>
+                    {round.scores.map((score, playerIndex) => {
+                      const hasScore = score !== null;
+                      const runningTotal = runningTotals[playerIndex];
+                      const isCurrentInput = isIncomplete && playerIndex === generalCurrentPlayer;
+
+                      return (
+                        <td
+                          key={playerIndex}
+                          className={`total-col ${hasScore && runningTotal < 0 ? "negative" : ""} ${playerIndex === generalLeaderIndex && round.complete ? "leader" : ""} ${isCurrentInput ? "current-input" : ""}`}
+                        >
+                          {hasScore ? (
+                            <>
+                              {runningTotal}
+                              <span className={`score-delta ${score < 0 ? "negative" : "positive"}`}>
+                                {score >= 0 ? "+" : ""}{score}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="pending-score">-</span>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+              {generalData.length === 0 && (
+                <tr className="empty-row">
+                  <td colSpan={players.length + 1} className="empty-cell">
+                    Add your first score above
+                  </td>
+                </tr>
+              )}
+            </tbody>
+            {generalData.length > 0 && generalData.some(r => r.complete) && (
+              <tfoot>
+                <tr className="totals-row">
+                  <td className="round-col">Total</td>
+                  {generalTotals.map((total, i) => (
+                    <td
+                      key={i}
+                      className={`total-col ${total < 0 ? "negative" : ""} ${i === generalLeaderIndex ? "leader" : ""}`}
+                    >
+                      {total}
+                    </td>
+                  ))}
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </div>
       </div>
     );
   }

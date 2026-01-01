@@ -3,6 +3,7 @@ export function GameSelect({ onSelect, GAME_CONFIG }) {
     { type: "septica", icon: "7" },
     { type: "whist", icon: "W" },
     { type: "rentz", icon: "R" },
+    { type: "general", icon: "+" },
   ];
 
   const getPlayerDescription = (type) => {
