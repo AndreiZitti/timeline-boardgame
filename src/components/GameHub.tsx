@@ -1,9 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useUser } from "@/contexts/UserContext";
 
-interface Game {
+interface Item {
   id: string;
   name: string;
   description: string;
@@ -12,7 +13,7 @@ interface Game {
   href: string;
 }
 
-const games: Game[] = [
+const games: Item[] = [
   {
     id: "hot-take",
     name: "Hot Take",
@@ -45,6 +46,9 @@ const games: Game[] = [
     accent: "#dc2626",
     href: "/games/secret-hitler",
   },
+];
+
+const tools: Item[] = [
   {
     id: "score-tracker",
     name: "Score Tracker",
@@ -62,6 +66,13 @@ interface GameHubProps {
 export function GameHub({ onOpenProfile }: GameHubProps) {
   const { profile } = useUser();
   const playerName = profile.name;
+  const [activeTab, setActiveTab] = useState<"games" | "tools">("games");
+
+  const items = activeTab === "games" ? games : tools;
+  const title = activeTab === "games" ? "Party Games" : "Tools";
+  const subtitle = activeTab === "games"
+    ? "Choose a game to play with friends"
+    : "Utilities for your game nights";
 
   return (
     <div className="screen game-hub">
@@ -72,42 +83,62 @@ export function GameHub({ onOpenProfile }: GameHubProps) {
           </button>
           <span className="hub-player-name">{playerName || "Guest"}</span>
         </div>
+        <a href="https://zitti.ro" className="hub-back-link">
+          &larr; zitti.ro
+        </a>
       </div>
 
       <div className="hub-content">
-        <h1 className="hub-title">Party Games</h1>
-        <p className="hub-subtitle">Choose a game to play with friends</p>
+        <h1 className="hub-title">{title}</h1>
+        <p className="hub-subtitle">{subtitle}</p>
 
         <div className="games-list">
-          {games.map((game) =>
-            game.available ? (
+          {items.map((item) =>
+            item.available ? (
               <Link
-                key={game.id}
-                href={game.href}
+                key={item.id}
+                href={item.href}
                 className="game-card"
-                style={{ "--game-accent": game.accent } as React.CSSProperties}
+                style={{ "--game-accent": item.accent } as React.CSSProperties}
               >
                 <div className="game-card-content">
-                  <h2 className="game-name">{game.name}</h2>
-                  <p className="game-description">{game.description}</p>
+                  <h2 className="game-name">{item.name}</h2>
+                  <p className="game-description">{item.description}</p>
                 </div>
                 <span className="game-arrow">&rarr;</span>
               </Link>
             ) : (
               <div
-                key={game.id}
+                key={item.id}
                 className="game-card coming-soon"
-                style={{ "--game-accent": game.accent } as React.CSSProperties}
+                style={{ "--game-accent": item.accent } as React.CSSProperties}
               >
                 <div className="game-card-content">
-                  <h2 className="game-name">{game.name}</h2>
-                  <p className="game-description">{game.description}</p>
+                  <h2 className="game-name">{item.name}</h2>
+                  <p className="game-description">{item.description}</p>
                   <span className="coming-soon-badge">Coming Soon</span>
                 </div>
               </div>
             )
           )}
         </div>
+      </div>
+
+      <div className="hub-tab-bar">
+        <button
+          className={`hub-tab ${activeTab === "games" ? "active" : ""}`}
+          onClick={() => setActiveTab("games")}
+        >
+          <span className="hub-tab-icon">🎮</span>
+          <span className="hub-tab-label">Games</span>
+        </button>
+        <button
+          className={`hub-tab ${activeTab === "tools" ? "active" : ""}`}
+          onClick={() => setActiveTab("tools")}
+        >
+          <span className="hub-tab-icon">🛠</span>
+          <span className="hub-tab-label">Tools</span>
+        </button>
       </div>
     </div>
   );
