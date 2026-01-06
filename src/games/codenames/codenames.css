@@ -37,22 +37,27 @@
 
 .codenames-home h1 {
   font-size: 3.5rem;
-  background: linear-gradient(135deg, var(--red) 0%, var(--blue) 100%);
+  background: linear-gradient(135deg, var(--red) 0%, #a855f7 50%, var(--blue) 100%);
+  background-size: 200% 100%;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
   color: transparent;
-  margin-bottom: 8px;
-  letter-spacing: 0.05em;
+  margin-bottom: 12px;
+  letter-spacing: 0.02em;
   filter: drop-shadow(0 0 30px rgba(37, 99, 235, 0.3));
-  animation: titleEntry 0.8s ease-out;
+  animation: titleEntry 0.8s ease-out, codenamesSweep 4s ease-in-out infinite 1s;
+}
+
+@keyframes codenamesSweep {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
 }
 
 .codenames-home .subtitle {
   font-size: 1.1rem;
   color: var(--text-secondary);
   margin-bottom: 48px;
-  font-style: italic;
   animation: fadeUp 0.6s ease-out 0.2s both;
 }
 
@@ -60,34 +65,15 @@
   animation: fadeUp 0.6s ease-out 0.4s both;
 }
 
+.codenames-home .how-to-play li::before {
+  background: linear-gradient(135deg, var(--red), var(--blue));
+  box-shadow: 0 0 12px var(--blue-glow);
+}
+
 .codenames-home .button-group {
   animation: fadeUp 0.6s ease-out 0.6s both;
-}
-
-/* ============================================
-   CREATE / JOIN SCREENS
-   ============================================ */
-
-.codenames-create,
-.codenames-join {
-  padding-top: 10vh;
-}
-
-.codenames-create h2,
-.codenames-join h2 {
-  text-align: center;
-  margin-bottom: 32px;
-}
-
-.codenames-create .form-group,
-.codenames-join .form-group {
-  margin-bottom: 20px;
-}
-
-.codenames-create .btn-primary,
-.codenames-join .btn-primary {
-  width: 100%;
-  margin-top: 16px;
+  padding-top: 0;
+  margin-top: 0;
 }
 
 /* ============================================

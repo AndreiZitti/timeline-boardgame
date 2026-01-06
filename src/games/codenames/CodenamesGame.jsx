@@ -98,14 +98,14 @@ export function CodenamesGame({ onBack }) {
         </button>
 
         <h1>CODENAMES</h1>
-        <p className="subtitle">Nume de Cod</p>
+        <p className="subtitle">Find your agents. Avoid the assassin.</p>
 
         <div className="how-to-play">
           <ul>
-            <li>Two teams compete — Red vs Blue</li>
-            <li>Each team has a Spymaster who sees the secret key</li>
-            <li>Spymasters give one-word clues to help their team find their agents</li>
-            <li>Avoid the Assassin at all costs!</li>
+            <li>Two teams compete — Red vs Blue — each with a Spymaster</li>
+            <li>Only Spymasters see which words belong to which team</li>
+            <li>Give one-word clues to help your team guess the right words</li>
+            <li>First team to find all their agents wins — but hit the Assassin and you lose!</li>
           </ul>
         </div>
 

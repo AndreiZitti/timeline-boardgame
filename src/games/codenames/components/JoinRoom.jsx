@@ -12,15 +12,13 @@ export function JoinRoom({ onBack, onJoinRoom, loading, error, savedName, initia
   }
 
   return (
-    <div className="screen codenames-join">
-      <button className="btn-back" onClick={onBack}>
-        &larr; Back
-      </button>
+    <div className="screen join-room">
+      <button className="btn-back" onClick={onBack}>&larr; Back</button>
 
-      <h2>Join Room</h2>
+      <h1>Join Room</h1>
 
       <form onSubmit={handleSubmit}>
-        <div className="form-group">
+        <div className="input-group">
           <label htmlFor="code">Room Code</label>
           <input
             id="code"
@@ -28,13 +26,14 @@ export function JoinRoom({ onBack, onJoinRoom, loading, error, savedName, initia
             value={code}
             onChange={(e) => setCode(e.target.value.toUpperCase())}
             placeholder="Enter room code"
-            autoFocus
             maxLength={5}
+            autoFocus
+            autoComplete="off"
             style={{ textTransform: 'uppercase' }}
           />
         </div>
 
-        <div className="form-group">
+        <div className="input-group">
           <label htmlFor="name">Your Name</label>
           <input
             id="name"
@@ -43,15 +42,16 @@ export function JoinRoom({ onBack, onJoinRoom, loading, error, savedName, initia
             onChange={(e) => setName(e.target.value)}
             placeholder="Enter your name"
             maxLength={20}
+            autoComplete="off"
           />
         </div>
 
-        {error && <p className="error">{error}</p>}
+        {error && <div className="error">{error}</div>}
 
         <button
           type="submit"
           className="btn btn-primary"
-          disabled={loading || !code.trim() || !name.trim()}
+          disabled={!code.trim() || !name.trim() || loading}
         >
           {loading ? 'Joining...' : 'Join Room'}
         </button>
