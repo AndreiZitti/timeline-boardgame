@@ -28,9 +28,9 @@
   --quiz-border-gold: rgba(255, 215, 0, 0.3);
 
   /* Typography */
-  --quiz-font-display: 'Oswald', 'Arial Narrow', sans-serif;
+  --quiz-font-display: var(--font-oswald, 'Oswald'), 'Arial Narrow', sans-serif;
   --quiz-font-body: 'Inter', -apple-system, sans-serif;
-  --quiz-font-mono: 'JetBrains Mono', 'Courier New', monospace;
+  --quiz-font-mono: var(--font-jetbrains, 'JetBrains Mono'), 'Courier New', monospace;
 
   /* Spacing */
   --quiz-radius-sm: 6px;

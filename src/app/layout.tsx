@@ -1,6 +1,32 @@
 import type { Metadata } from "next";
+import { Plus_Jakarta_Sans, Space_Mono, Oswald, JetBrains_Mono } from "next/font/google";
 import { UserProvider } from "@/contexts/UserContext";
 import "./globals.css";
+
+const plusJakarta = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  variable: '--font-jakarta',
+  display: 'swap',
+});
+
+const spaceMono = Space_Mono({
+  subsets: ['latin'],
+  weight: ['400', '700'],
+  variable: '--font-space-mono',
+  display: 'swap',
+});
+
+const oswald = Oswald({
+  subsets: ['latin'],
+  variable: '--font-oswald',
+  display: 'swap',
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  variable: '--font-jetbrains',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: "Party Games",
@@ -14,13 +40,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <head>
-        <link
-          href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap"
-          rel="stylesheet"
-        />
-      </head>
-      <body>
+      <body className={`${plusJakarta.variable} ${spaceMono.variable} ${oswald.variable} ${jetbrainsMono.variable}`}>
         <UserProvider>{children}</UserProvider>
       </body>
     </html>
