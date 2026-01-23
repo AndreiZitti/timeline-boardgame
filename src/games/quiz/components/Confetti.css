@@ -44,3 +44,10 @@
   height: 14px;
   border-radius: 2px;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .quiz-confetti__piece {
+    animation: none;
+    opacity: 0;
+  }
+}
