@@ -2,8 +2,10 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase, supabaseGames } from '@/lib/supabase/client'
 import { generateRoomCode } from '@/lib/random'
 import { useUser } from '@/contexts/UserContext'
-import { buildBoard, getCategories } from '../data/packs'
+import { buildBoard, getCategories, getCategoriesFromBoard, isDynamicPack, DYNAMIC_PACKS } from '../data/packs'
 import { isAnswerCorrect, calculatePoints } from '../utils/matching'
+import { fetchOpenTDBBoard } from '../data/opentdb'
+import { fetchBoardFromDB, voteOnQuestion } from '../data/questions-db'
 
 // LocalStorage key for this game
 const STORAGE_KEY = 'quizRoomCode'
@@ -62,7 +64,12 @@ export function useQuizRoom() {
   const hasAnswered = currentPlayer?.hasAnswered || false
 
   // Get categories for board display
-  const categories = room?.question_pack ? getCategories(room.question_pack) : []
+  // Get categories - from board for dynamic packs, from pack definition for static
+  const categories = room?.board 
+    ? getCategoriesFromBoard(room.board) 
+    : room?.question_pack 
+      ? getCategories(room.question_pack) 
+      : []
 
   // Current question from board
   const currentQuestion = room?.current_question
@@ -274,21 +281,49 @@ export function useQuizRoom() {
   const selectPack = useCallback(async (packId) => {
     if (!room || !isHost || room.phase !== 'lobby') return
 
-    const board = buildBoard(packId)
-    if (!board) {
-      setError('Invalid question pack')
-      return
+    setLoading(true)
+    setError(null)
+
+    try {
+      let board
+
+      if (isDynamicPack(packId)) {
+        // Fetch dynamic pack
+        if (packId === 'opentdb') {
+          // Live API fetch
+          const result = await fetchOpenTDBBoard()
+          board = result.board
+        } else if (packId === 'opentdb-db') {
+          // Database fetch (with voting support)
+          const result = await fetchBoardFromDB()
+          board = result.board
+        } else {
+          throw new Error('Unknown dynamic pack')
+        }
+      } else {
+        // Build from static pack
+        board = buildBoard(packId)
+      }
+
+      if (!board) {
+        setError('Failed to load question pack')
+        return
+      }
+
+      const { error: updateError } = await supabaseGames
+        .from('quiz_rooms')
+        .update({
+          question_pack: packId,
+          board
+        })
+        .eq('code', room.code)
+
+      if (updateError) setError(updateError.message)
+    } catch (err) {
+      setError(err.message || 'Failed to load questions')
+    } finally {
+      setLoading(false)
     }
-
-    const { error: updateError } = await supabaseGames
-      .from('quiz_rooms')
-      .update({
-        question_pack: packId,
-        board
-      })
-      .eq('code', room.code)
-
-    if (updateError) setError(updateError.message)
   }, [room, isHost])
 
   // Start game (host only, needs pack selected)
@@ -388,10 +423,19 @@ export function useQuizRoom() {
     const submissions = room.current_question.submissions || []
 
     // Evaluate all submissions
-    const evaluatedSubmissions = submissions.map(s => ({
-      ...s,
-      correct: isAnswerCorrect(s.answer, question.answer, question.alternates)
-    }))
+    // For multiple choice/boolean: exact match (case-insensitive)
+    // For text input: use fuzzy matching
+    const evaluatedSubmissions = submissions.map(s => {
+      let isCorrect
+      if (question.type === 'multiple' || question.type === 'boolean') {
+        // Exact match for multiple choice (case-insensitive)
+        isCorrect = s.answer.toLowerCase().trim() === question.answer.toLowerCase().trim()
+      } else {
+        // Fuzzy match for free text
+        isCorrect = isAnswerCorrect(s.answer, question.answer, question.alternates)
+      }
+      return { ...s, correct: isCorrect }
+    })
 
     // Calculate points
     const pointsAwarded = calculatePoints(evaluatedSubmissions, question.value)

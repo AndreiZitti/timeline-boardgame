@@ -152,6 +152,7 @@ export function QuizGame({ onBack }) {
           onStartGame={startGame}
           onLeave={handleLeave}
           error={error}
+          loading={loading}
         />
       )
     }

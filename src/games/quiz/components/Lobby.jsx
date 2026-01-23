@@ -6,7 +6,8 @@ export function Lobby({
   onSelectPack, 
   onStartGame, 
   onLeave, 
-  error 
+  error,
+  loading 
 }) {
   const packs = getPackList()
   const selectedPack = packs.find(p => p.id === room.question_pack)
@@ -41,13 +42,23 @@ export function Lobby({
               {packs.map(pack => (
                 <button
                   key={pack.id}
-                  className={`pack-option ${room.question_pack === pack.id ? 'selected' : ''}`}
+                  className={`pack-option ${room.question_pack === pack.id ? 'selected' : ''} ${pack.isDynamic ? 'dynamic' : ''}`}
                   onClick={() => onSelectPack(pack.id)}
+                  disabled={loading}
                 >
-                  <span className="pack-name">{pack.name}</span>
+                  <div className="pack-header">
+                    <span className="pack-name">{pack.name}</span>
+                    {pack.isDynamic && <span className="dynamic-badge">Online</span>}
+                  </div>
                   <span className="pack-info">
-                    {pack.categoryCount} categories · {pack.questionCount} questions
+                    {pack.isDynamic 
+                      ? 'Multiple choice questions from the internet'
+                      : `${pack.categoryCount} categories · ${pack.questionCount} questions`
+                    }
                   </span>
+                  {loading && room.question_pack === pack.id && (
+                    <span className="loading-text">Loading questions...</span>
+                  )}
                 </button>
               ))}
             </div>
@@ -73,12 +84,12 @@ export function Lobby({
           <button
             className="btn btn-primary"
             onClick={onStartGame}
-            disabled={!room.question_pack || room.players.length < 2}
+            disabled={!room.board || room.players.length < 2 || loading}
           >
-            Start Game
+            {loading ? 'Loading...' : 'Start Game'}
           </button>
         )}
-        <button className="btn btn-secondary" onClick={onLeave}>
+        <button className="btn btn-secondary" onClick={onLeave} disabled={loading}>
           Leave Room
         </button>
       </div>

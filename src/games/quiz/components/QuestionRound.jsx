@@ -7,14 +7,21 @@ export function QuestionRound({
   hasAnswered,
   onSubmitAnswer
 }) {
-  const [answer, setAnswer] = useState('')
+  const [textAnswer, setTextAnswer] = useState('')
+  const [selectedOption, setSelectedOption] = useState(null)
 
-  const handleSubmit = (e) => {
+  const handleTextSubmit = (e) => {
     e.preventDefault()
-    if (answer.trim() && !hasAnswered) {
-      onSubmitAnswer(answer.trim())
-      setAnswer('')
+    if (textAnswer.trim() && !hasAnswered) {
+      onSubmitAnswer(textAnswer.trim())
+      setTextAnswer('')
     }
+  }
+
+  const handleOptionSelect = (option) => {
+    if (hasAnswered) return
+    setSelectedOption(option)
+    onSubmitAnswer(option)
   }
 
   // Count how many have answered
@@ -23,6 +30,10 @@ export function QuestionRound({
 
   // Timer color based on time remaining
   const timerClass = timeRemaining <= 10 ? 'critical' : timeRemaining <= 30 ? 'warning' : ''
+
+  // Determine question type
+  const questionType = currentQuestion.type || 'text'
+  const isMultipleChoice = questionType === 'multiple' || questionType === 'boolean'
 
   return (
     <div className="screen quiz-question">
@@ -41,26 +52,49 @@ export function QuestionRound({
       </div>
 
       {!hasAnswered ? (
-        <form onSubmit={handleSubmit} className="answer-form">
-          <input
-            type="text"
-            value={answer}
-            onChange={(e) => setAnswer(e.target.value)}
-            placeholder="Type your answer..."
-            autoFocus
-            maxLength={100}
-          />
-          <button 
-            type="submit" 
-            className="btn btn-primary"
-            disabled={!answer.trim()}
-          >
-            Submit
-          </button>
-        </form>
+        isMultipleChoice ? (
+          // Multiple choice or True/False
+          <div className={`options-grid ${questionType === 'boolean' ? 'boolean' : ''}`}>
+            {currentQuestion.options?.map((option, index) => (
+              <button
+                key={index}
+                className={`option-btn ${selectedOption === option ? 'selected' : ''}`}
+                onClick={() => handleOptionSelect(option)}
+                disabled={hasAnswered}
+              >
+                <span className="option-letter">
+                  {questionType === 'boolean' ? '' : String.fromCharCode(65 + index)}
+                </span>
+                <span className="option-text">{option}</span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          // Free text input
+          <form onSubmit={handleTextSubmit} className="answer-form">
+            <input
+              type="text"
+              value={textAnswer}
+              onChange={(e) => setTextAnswer(e.target.value)}
+              placeholder="Type your answer..."
+              autoFocus
+              maxLength={100}
+            />
+            <button 
+              type="submit" 
+              className="btn btn-primary"
+              disabled={!textAnswer.trim()}
+            >
+              Submit
+            </button>
+          </form>
+        )
       ) : (
         <div className="answer-submitted">
           <p>Answer submitted! Waiting for others...</p>
+          {selectedOption && (
+            <p className="your-answer">Your answer: <strong>{selectedOption}</strong></p>
+          )}
         </div>
       )}
 
