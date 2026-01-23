@@ -30,7 +30,7 @@ export function Timer({
   ].filter(Boolean).join(' ')
 
   return (
-    <div className={containerClass}>
+    <div className={containerClass} aria-label={`${seconds} seconds remaining`}>
       <svg viewBox="0 0 80 80">
         <circle
           className="quiz-timer__bg"
@@ -47,7 +47,7 @@ export function Timer({
           strokeDashoffset={offset}
         />
       </svg>
-      <span className="quiz-timer__text">{seconds}</span>
+      <span className="quiz-timer__text" aria-hidden="true">{seconds}</span>
     </div>
   )
 }
