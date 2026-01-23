@@ -54,6 +54,14 @@ const games: Item[] = [
     accent: "#2563eb",
     href: "/games/codenames",
   },
+  {
+    id: "quiz",
+    name: "Quiz",
+    description: "Race to answer trivia! Fastest correct wins the most points.",
+    available: true,
+    accent: "#eab308",
+    href: "/games/quiz",
+  },
 ];
 
 const tools: Item[] = [
