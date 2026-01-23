@@ -1,48 +1,50 @@
-export function Board({ 
-  room, 
-  categories, 
-  isPicker, 
+export function Board({
+  room,
+  categories,
+  isPicker,
   onSelectQuestion,
   isHost,
-  onEndGame 
+  onEndGame
 }) {
   const values = [100, 200, 300, 400, 500]
 
-  // Get question by category index and value index
   const getQuestion = (catIndex, valueIndex) => {
     const index = catIndex * 5 + valueIndex
     return room.board[index]
   }
 
-  const pickerName = room.players.find(p => p.id === room.picker_id)?.name || 'Someone'
+  const pickerPlayer = room.players.find(p => p.id === room.picker_id)
+  const pickerName = pickerPlayer?.name || 'Someone'
+
+  // Sort players by score for mini scoreboard
+  const sortedPlayers = [...room.players].sort((a, b) => b.score - a.score)
 
   return (
     <div className="screen quiz-board quiz-game">
       <div className="board-header">
-        <h2>Quiz Board</h2>
-        {isPicker ? (
-          <p className="picker-status">Your turn to pick a question!</p>
-        ) : (
-          <p className="picker-status">{pickerName} is picking...</p>
-        )}
+        <h2>Quiz</h2>
+        <p className={`picker-status ${isPicker ? 'picker-status--you' : 'picker-status--other'}`}>
+          {isPicker ? '✨ Your turn to pick!' : `${pickerName} is picking...`}
+        </p>
       </div>
 
       <div className="scoreboard-mini">
-        {room.players
-          .slice()
-          .sort((a, b) => b.score - a.score)
-          .map((player, index) => (
-            <div key={player.id} className="mini-score">
-              <span className="rank">{index + 1}.</span>
-              <span className="name">{player.name}</span>
-              <span className="score">{player.score}</span>
-            </div>
-          ))}
+        {sortedPlayers.map((player, index) => (
+          <div
+            key={player.id}
+            className={`mini-score ${index === 0 ? 'mini-score--leader' : ''}`}
+          >
+            {index === 0 && <span className="mini-score__crown">👑</span>}
+            <span className="mini-score__rank">{index + 1}.</span>
+            <span className="mini-score__name">{player.name}</span>
+            <span className="mini-score__score">{player.score}</span>
+          </div>
+        ))}
       </div>
 
       <div className="board-grid">
         {/* Category headers */}
-        <div className="board-row categories">
+        <div className="board-row board-row--categories">
           {categories.map((cat, i) => (
             <div key={i} className="category-header">
               {cat}
@@ -60,7 +62,7 @@ export function Board({
               return (
                 <button
                   key={`${catIndex}-${valueIndex}`}
-                  className={`board-tile ${isUsed ? 'used' : ''} ${isPicker && !isUsed ? 'selectable' : ''}`}
+                  className={`board-tile ${isUsed ? 'board-tile--used' : ''} ${isPicker && !isUsed ? 'board-tile--selectable' : ''}`}
                   onClick={() => {
                     if (isPicker && !isUsed) {
                       onSelectQuestion(question.index)
@@ -68,7 +70,7 @@ export function Board({
                   }}
                   disabled={isUsed || !isPicker}
                 >
-                  {isUsed ? '' : value}
+                  <span className="board-tile__value">{value}</span>
                 </button>
               )
             })}
