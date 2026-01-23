@@ -34,6 +34,8 @@ export function QuizGame({ onBack }) {
     leaveRoom,
     selectPack,
     startGame,
+    addBot,
+    removeBot,
     selectQuestion,
     submitAnswer,
     revealAnswers,
@@ -151,6 +153,8 @@ export function QuizGame({ onBack }) {
           onSelectPack={selectPack}
           onStartGame={startGame}
           onLeave={handleLeave}
+          onAddBot={addBot}
+          onRemoveBot={removeBot}
           error={error}
           loading={loading}
         />

@@ -13,6 +13,17 @@ const STORAGE_KEY = 'quizRoomCode'
 // Timer duration in seconds
 const ROUND_DURATION = 60
 
+// Bot names pool
+const BOT_NAMES = [
+  'QuizBot', 'Trivia Tim', 'Smarty Pants', 'Know-It-All', 'Brain Bot',
+  'Quiz Whiz', 'Clever Clara', 'Einstein Jr', 'The Professor', 'Genius Joe'
+]
+
+// Generate a bot ID
+function generateBotId() {
+  return `bot-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`
+}
+
 // Get saved room code from localStorage
 function getSavedRoomCode() {
   if (typeof window === 'undefined') return null
@@ -278,7 +289,8 @@ export function useQuizRoom() {
   }, [playerId, updateName])
 
   // Select question pack (host only, lobby phase)
-  const selectPack = useCallback(async (packId) => {
+  // filters: { categories: number[], difficulties: string[], types: string[] }
+  const selectPack = useCallback(async (packId, filters = null) => {
     if (!room || !isHost || room.phase !== 'lobby') return
 
     setLoading(true)
@@ -294,8 +306,13 @@ export function useQuizRoom() {
           const result = await fetchOpenTDBBoard()
           board = result.board
         } else if (packId === 'opentdb-db') {
-          // Database fetch (with voting support)
-          const result = await fetchBoardFromDB()
+          // Database fetch with filters
+          const options = filters ? {
+            categoryIds: filters.categories,
+            difficulties: filters.difficulties,
+            types: filters.types
+          } : {}
+          const result = await fetchBoardFromDB(options)
           board = result.board
         } else {
           throw new Error('Unknown dynamic pack')
@@ -556,6 +573,179 @@ export function useQuizRoom() {
     setError(null)
   }, [])
 
+  // Add a bot player (host only, lobby phase)
+  const addBot = useCallback(async () => {
+    if (!room || !isHost || room.phase !== 'lobby') return
+
+    // Pick a random name not already used
+    const usedNames = room.players.map(p => p.name)
+    const availableNames = BOT_NAMES.filter(n => !usedNames.includes(n))
+    const botName = availableNames.length > 0
+      ? availableNames[Math.floor(Math.random() * availableNames.length)]
+      : `Bot ${room.players.length + 1}`
+
+    const botPlayer = {
+      id: generateBotId(),
+      name: botName,
+      score: 0,
+      hasAnswered: false,
+      isBot: true
+    }
+
+    const updatedPlayers = [...room.players, botPlayer]
+
+    const { error: updateError } = await supabaseGames
+      .from('quiz_rooms')
+      .update({ players: updatedPlayers })
+      .eq('code', room.code)
+
+    if (updateError) setError(updateError.message)
+  }, [room, isHost])
+
+  // Remove a bot player (host only, lobby phase)
+  const removeBot = useCallback(async (botId) => {
+    if (!room || !isHost || room.phase !== 'lobby') return
+
+    const updatedPlayers = room.players.filter(p => p.id !== botId)
+
+    const { error: updateError } = await supabaseGames
+      .from('quiz_rooms')
+      .update({ players: updatedPlayers })
+      .eq('code', room.code)
+
+    if (updateError) setError(updateError.message)
+  }, [room, isHost])
+
+  // Bot behavior effect - auto-play for bots
+  useEffect(() => {
+    if (!room || !isHost) return // Only host runs bot logic
+
+    const bots = room.players.filter(p => p.isBot)
+    if (bots.length === 0) return
+
+    // Bot picks a question (picking phase)
+    if (room.phase === 'picking') {
+      const pickerBot = bots.find(b => b.id === room.picker_id)
+      if (pickerBot) {
+        // Random delay 1-3 seconds
+        const delay = 1000 + Math.random() * 2000
+        const timeout = setTimeout(async () => {
+          // Pick a random available question
+          const availableQuestions = room.board
+            .map((q, i) => ({ ...q, index: i }))
+            .filter(q => !q.used)
+          if (availableQuestions.length > 0) {
+            const pick = availableQuestions[Math.floor(Math.random() * availableQuestions.length)]
+            // Directly update DB (bypass isPicker check since we're the host running bot logic)
+            const updatedPlayers = room.players.map(p => ({ ...p, hasAnswered: false }))
+            await supabaseGames
+              .from('quiz_rooms')
+              .update({
+                phase: 'answering',
+                players: updatedPlayers,
+                current_question: {
+                  index: pick.index,
+                  started_at: new Date().toISOString(),
+                  submissions: []
+                }
+              })
+              .eq('code', room.code)
+          }
+        }, delay)
+        return () => clearTimeout(timeout)
+      }
+    }
+
+    // Bots answer questions (answering phase)
+    if (room.phase === 'answering' && room.current_question) {
+      const question = room.board[room.current_question.index]
+      const botsWhoHaventAnswered = bots.filter(b => !b.hasAnswered)
+
+      if (botsWhoHaventAnswered.length > 0) {
+        // Each bot answers with random delay
+        const timeouts = botsWhoHaventAnswered.map((bot, i) => {
+          const delay = 2000 + Math.random() * 8000 // 2-10 seconds
+          return setTimeout(async () => {
+            // 70% chance to get correct answer
+            const isCorrect = Math.random() < 0.7
+            let answer
+            if (question.type === 'multiple' || question.type === 'boolean') {
+              if (isCorrect) {
+                answer = question.answer
+              } else {
+                // Pick wrong answer
+                const wrongAnswers = question.options.filter(o => o !== question.answer)
+                answer = wrongAnswers[Math.floor(Math.random() * wrongAnswers.length)] || question.answer
+              }
+            } else {
+              answer = isCorrect ? question.answer : 'Wrong answer'
+            }
+
+            // Submit bot answer
+            const { data: freshRoom } = await supabaseGames
+              .from('quiz_rooms')
+              .select()
+              .eq('code', room.code)
+              .single()
+
+            if (freshRoom?.phase !== 'answering') return // Phase changed
+
+            const currentSubmissions = freshRoom.current_question?.submissions || []
+            if (currentSubmissions.some(s => s.player_id === bot.id)) return // Already answered
+
+            const submission = {
+              player_id: bot.id,
+              answer,
+              submitted_at: new Date().toISOString(),
+              correct: null
+            }
+
+            const updatedSubmissions = [...currentSubmissions, submission]
+            const updatedPlayers = freshRoom.players.map(p =>
+              p.id === bot.id ? { ...p, hasAnswered: true } : p
+            )
+
+            await supabaseGames
+              .from('quiz_rooms')
+              .update({
+                players: updatedPlayers,
+                current_question: {
+                  ...freshRoom.current_question,
+                  submissions: updatedSubmissions
+                }
+              })
+              .eq('code', room.code)
+          }, delay)
+        })
+        return () => timeouts.forEach(t => clearTimeout(t))
+      }
+    }
+
+    // Bot continues after reveal (reveal phase)
+    if (room.phase === 'reveal') {
+      const pickerBot = bots.find(b => b.id === room.picker_id)
+      if (pickerBot) {
+        // Auto-continue after 3-5 seconds
+        const delay = 3000 + Math.random() * 2000
+        const timeout = setTimeout(async () => {
+          const remainingQ = room.board.filter(q => !q.used).length
+          if (remainingQ === 0) {
+            await supabaseGames
+              .from('quiz_rooms')
+              .update({ phase: 'ended', current_question: null })
+              .eq('code', room.code)
+          } else {
+            await supabaseGames
+              .from('quiz_rooms')
+              .update({ phase: 'picking', current_question: null })
+              .eq('code', room.code)
+          }
+        }, delay)
+        return () => clearTimeout(timeout)
+      }
+    }
+  }, [room?.phase, room?.picker_id, room?.current_question?.index, room?.code, isHost])
+
   // Get sorted players by score (for scoreboard)
   const sortedPlayers = room?.players
     ? [...room.players].sort((a, b) => b.score - a.score)
@@ -596,6 +786,8 @@ export function useQuizRoom() {
     // Lobby actions
     selectPack,
     startGame,
+    addBot,
+    removeBot,
 
     // Game actions
     selectQuestion,

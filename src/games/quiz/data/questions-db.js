@@ -50,21 +50,28 @@ function shuffleArray(array) {
  * Fetch a board of questions from the database
  * @param {Object} options
  * @param {number[]} options.categoryIds - Array of category IDs to include (default: random 6)
- * @param {string} options.type - 'multiple', 'boolean', or 'any' (default: 'any')
+ * @param {string[]} options.difficulties - Array of difficulties to include (default: all)
+ * @param {string[]} options.types - Array of types to include (default: all)
  * @param {number} options.minQuality - Minimum (likes - dislikes) score (default: -5)
  * @returns {Promise<{board: Array, categories: string[]}>}
  */
 export async function fetchBoardFromDB(options = {}) {
   const {
     categoryIds = null, // null = random 6
-    type = 'any',
+    difficulties = ['easy', 'medium', 'hard'],
+    types = ['multiple', 'boolean'],
     minQuality = -5
   } = options
 
-  // Select 6 random categories if not specified
+  // Select 6 random categories from the allowed ones
   let selectedCategories
   if (categoryIds && categoryIds.length >= 6) {
-    selectedCategories = categoryIds.slice(0, 6)
+    // Shuffle and pick 6 from the allowed categories
+    const shuffled = shuffleArray([...categoryIds])
+    selectedCategories = shuffled.slice(0, 6)
+  } else if (categoryIds && categoryIds.length > 0) {
+    // Use all provided categories if less than 6
+    selectedCategories = categoryIds
   } else {
     const shuffled = shuffleArray(ALL_CATEGORIES)
     selectedCategories = shuffled.slice(0, 6).map(c => c.id)
@@ -80,15 +87,23 @@ export async function fetchBoardFromDB(options = {}) {
     const catInfo = ALL_CATEGORIES.find(c => c.id === categoryId)
     categories.push(catInfo?.short || 'Unknown')
 
-    // Build query
+    // Build query with filters
     let query = supabaseGames
       .from('quiz_questions')
       .select('*')
       .eq('category_id', categoryId)
-      .gte('likes', 0) // Has the columns (table exists)
+      .gte('likes', 0)
 
-    if (type !== 'any') {
-      query = query.eq('type', type)
+    // Filter by types
+    if (types.length === 1) {
+      query = query.eq('type', types[0])
+    } else if (types.length > 0 && types.length < 2) {
+      query = query.in('type', types)
+    }
+
+    // Filter by difficulties
+    if (difficulties.length > 0 && difficulties.length < 3) {
+      query = query.in('difficulty', difficulties)
     }
 
     // Get more than needed so we can randomize
@@ -107,11 +122,17 @@ export async function fetchBoardFromDB(options = {}) {
 
     // Filter by quality
     const goodQuestions = questions.filter(q => (q.likes - q.dislikes) >= minQuality)
-    
-    // Separate by difficulty for point value assignment
-    const easy = shuffleArray(goodQuestions.filter(q => q.difficulty === 'easy'))
-    const medium = shuffleArray(goodQuestions.filter(q => q.difficulty === 'medium'))
-    const hard = shuffleArray(goodQuestions.filter(q => q.difficulty === 'hard'))
+
+    // Separate by difficulty for point value assignment (only use allowed difficulties)
+    const easy = difficulties.includes('easy')
+      ? shuffleArray(goodQuestions.filter(q => q.difficulty === 'easy'))
+      : []
+    const medium = difficulties.includes('medium')
+      ? shuffleArray(goodQuestions.filter(q => q.difficulty === 'medium'))
+      : []
+    const hard = difficulties.includes('hard')
+      ? shuffleArray(goodQuestions.filter(q => q.difficulty === 'hard'))
+      : []
     
     // Assign questions to point values
     // 100, 200 = easy; 300 = medium; 400, 500 = hard

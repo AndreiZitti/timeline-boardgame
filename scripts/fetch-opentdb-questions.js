@@ -6,21 +6,22 @@
  * 
  * Environment variables needed:
  * - NEXT_PUBLIC_SUPABASE_URL
- * - SUPABASE_SERVICE_ROLE_KEY (for inserting questions)
+ * - SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY
  */
 
-const crypto = require('crypto')
+import crypto from 'crypto'
+import dotenv from 'dotenv'
 
 // Load environment variables
-require('dotenv').config({ path: '.env.local' })
-require('dotenv').config({ path: '.env' })
+dotenv.config({ path: '.env.local' })
+dotenv.config({ path: '.env' })
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+if (!SUPABASE_URL || !SUPABASE_KEY) {
   console.error('Missing environment variables!')
-  console.error('Need: NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY')
+  console.error('Need: NEXT_PUBLIC_SUPABASE_URL and (SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY)')
   process.exit(1)
 }
 
@@ -103,9 +104,10 @@ async function insertQuestions(questions) {
   const response = await fetch(`${SUPABASE_URL}/rest/v1/quiz_questions`, {
     method: 'POST',
     headers: {
-      'apikey': SUPABASE_SERVICE_KEY,
-      'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
       'Content-Type': 'application/json',
+      'Content-Profile': 'games',
       'Prefer': 'resolution=ignore-duplicates'
     },
     body: JSON.stringify(questions)
@@ -125,29 +127,79 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
+// Progress bar helper
+function renderProgressBar(current, total, width = 30) {
+  const percent = current / total
+  const filled = Math.round(width * percent)
+  const empty = width - filled
+  const bar = '█'.repeat(filled) + '░'.repeat(empty)
+  return `[${bar}] ${Math.round(percent * 100)}%`
+}
+
+// Format time
+function formatTime(ms) {
+  const seconds = Math.floor(ms / 1000)
+  const minutes = Math.floor(seconds / 60)
+  const remainingSeconds = seconds % 60
+  if (minutes > 0) {
+    return `${minutes}m ${remainingSeconds}s`
+  }
+  return `${seconds}s`
+}
+
+// Clear lines and move cursor
+function clearLines(n) {
+  for (let i = 0; i < n; i++) {
+    process.stdout.write('\x1b[1A\x1b[2K')
+  }
+}
+
 // Main fetch loop
 async function main() {
+  const totalCombinations = CATEGORIES.length * DIFFICULTIES.length * TYPES.length
+  
+  console.log('')
   console.log('🎯 Open Trivia DB Question Fetcher')
-  console.log('===================================')
-  console.log(`Categories: ${CATEGORIES.length}`)
-  console.log(`Difficulties: ${DIFFICULTIES.length}`)
-  console.log(`Types: ${TYPES.length}`)
-  console.log(`Total combinations: ${CATEGORIES.length * DIFFICULTIES.length * TYPES.length}`)
-  console.log(`Estimated time: ~${Math.ceil(CATEGORIES.length * DIFFICULTIES.length * TYPES.length * RATE_LIMIT_MS / 60000)} minutes`)
+  console.log('═══════════════════════════════════════════════════')
+  console.log(`  Categories: ${CATEGORIES.length} | Difficulties: 3 | Types: 2`)
+  console.log(`  Total API calls: ${totalCombinations}`)
+  console.log(`  Estimated time: ~${Math.ceil(totalCombinations * RATE_LIMIT_MS / 60000)} minutes`)
+  console.log('═══════════════════════════════════════════════════')
   console.log('')
   
   let totalFetched = 0
   let totalInserted = 0
+  let totalEmpty = 0
+  let totalErrors = 0
   let combinationIndex = 0
-  const totalCombinations = CATEGORIES.length * DIFFICULTIES.length * TYPES.length
+  const startTime = Date.now()
+  
+  // Initial display (will be updated)
+  console.log('') // Progress bar line
+  console.log('') // Category line
+  console.log('') // Stats line
+  console.log('') // ETA line
+  console.log('') // Last result line
+  
+  let lastResult = 'Starting...'
   
   for (const category of CATEGORIES) {
     for (const difficulty of DIFFICULTIES) {
       for (const type of TYPES) {
         combinationIndex++
-        const progress = `[${combinationIndex}/${totalCombinations}]`
         
-        process.stdout.write(`${progress} ${category.name} | ${difficulty} | ${type}... `)
+        // Calculate ETA
+        const elapsed = Date.now() - startTime
+        const avgTimePerCall = combinationIndex > 1 ? elapsed / (combinationIndex - 1) : RATE_LIMIT_MS
+        const remaining = (totalCombinations - combinationIndex) * avgTimePerCall
+        
+        // Update display
+        clearLines(5)
+        console.log(`  Progress: ${renderProgressBar(combinationIndex, totalCombinations)}  (${combinationIndex}/${totalCombinations})`)
+        console.log(`  Category: ${category.name}`)
+        console.log(`  Current:  ${difficulty} | ${type === 'multiple' ? 'Multiple Choice' : 'True/False'}`)
+        console.log(`  Stats:    ${totalFetched.toLocaleString()} fetched | ${totalEmpty} empty | ${totalErrors} errors`)
+        console.log(`  ETA:      ${formatTime(remaining)} remaining`)
         
         try {
           const questions = await fetchQuestions(category.id, difficulty, type, 30)
@@ -156,12 +208,14 @@ async function main() {
           if (questions.length > 0) {
             const inserted = await insertQuestions(questions)
             totalInserted += inserted
-            console.log(`✓ ${questions.length} questions`)
+            lastResult = `✓ ${questions.length} questions from ${category.name}`
           } else {
-            console.log('⚠ No questions available')
+            totalEmpty++
+            lastResult = `⚠ No questions for ${category.name} (${difficulty}/${type})`
           }
         } catch (error) {
-          console.log(`✗ Error: ${error.message}`)
+          totalErrors++
+          lastResult = `✗ Error: ${error.message}`
         }
         
         // Rate limit
@@ -170,11 +224,21 @@ async function main() {
     }
   }
   
+  // Final display
+  clearLines(5)
+  const totalTime = Date.now() - startTime
+  
   console.log('')
-  console.log('===================================')
-  console.log(`✅ Done!`)
-  console.log(`   Fetched: ${totalFetched} questions`)
-  console.log(`   Inserted: ${totalInserted} questions`)
+  console.log('═══════════════════════════════════════════════════')
+  console.log('  ✅ COMPLETE!')
+  console.log('═══════════════════════════════════════════════════')
+  console.log(`  📊 Questions fetched:  ${totalFetched.toLocaleString()}`)
+  console.log(`  💾 Questions inserted: ${totalInserted.toLocaleString()}`)
+  console.log(`  ⚠️  Empty responses:    ${totalEmpty}`)
+  console.log(`  ❌ Errors:             ${totalErrors}`)
+  console.log(`  ⏱️  Total time:         ${formatTime(totalTime)}`)
+  console.log('═══════════════════════════════════════════════════')
+  console.log('')
 }
 
 main().catch(console.error)
