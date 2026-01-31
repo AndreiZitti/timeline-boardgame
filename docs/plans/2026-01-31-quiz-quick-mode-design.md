@@ -137,9 +137,56 @@ Selected box: highlighted
 - All questions pre-determined, revealed sequentially
 - Host controls "Continue to Next Round" between rounds
 
+## Session Token System (Connectivity Improvement)
+
+### Problem
+- Incognito users get a new `playerId` each session
+- If they close/reopen tab, they cannot rejoin as themselves
+- Current system relies on localStorage which incognito doesn't persist
+
+### Solution: Session Tokens in URL
+
+When a player joins a room, generate a unique session token and include it in the URL.
+
+```
+URL: /games/quiz?room=ABCD1&session=x7k9m2
+```
+
+### Player Object Addition
+
+```javascript
+{
+  id: "uuid",
+  name: "Player Name",
+  sessionToken: "x7k9m2",  // NEW: 6-char random token
+  // ... rest unchanged
+}
+```
+
+### Rejoin Logic (Updated)
+
+```
+1. Check URL for ?session=xxx
+2. If found → match against room.players[].sessionToken
+3. If match → rejoin as that player (even with different playerId)
+4. If no session param → fall back to playerId matching
+```
+
+### Benefits
+- **Incognito works**: URL contains everything needed to rejoin
+- **Shareable**: Player can copy URL to rejoin from another tab
+- **Backward compatible**: Old rooms without tokens still work via playerId
+- **No extra friction**: Token is auto-generated and embedded in URL
+
+### Security Considerations
+- Session tokens are short-lived (room lifetime only)
+- Anyone with the URL can rejoin as that player (acceptable for party games)
+- Could add expiry if needed, but unnecessary for casual play
+
 ## Migration Path
 
 Quick mode is separate from classic mode:
 - `game_mode: "quick"` vs `game_mode: "classic"`
 - Existing classic mode unchanged
 - Quick mode uses different phase flow and player structure
+- Session token system applies to BOTH modes (general improvement)
