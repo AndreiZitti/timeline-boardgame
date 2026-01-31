@@ -433,6 +433,59 @@ export function useQuizRoom() {
     }
   }, [room, isHost, incrementGamesHosted])
 
+  // Select a wager box (quick mode)
+  const selectWager = useCallback(async (boxNumber) => {
+    if (!room || room.phase !== 'wagering' || room.game_mode !== 'quick') return
+
+    const player = room.players.find(p => p.id === playerId)
+    if (!player || !player.availableBoxes?.includes(boxNumber)) return
+    if (player.wagerLocked) return
+
+    const updatedPlayers = room.players.map(p =>
+      p.id === playerId ? { ...p, currentWager: boxNumber } : p
+    )
+
+    const { error: updateError } = await supabaseGames
+      .from('quiz_rooms')
+      .update({ players: updatedPlayers })
+      .eq('code', room.code)
+
+    if (updateError) setError(updateError.message)
+  }, [room, playerId])
+
+  // Lock in wager (quick mode)
+  const lockWager = useCallback(async () => {
+    if (!room || room.phase !== 'wagering' || room.game_mode !== 'quick') return
+
+    const player = room.players.find(p => p.id === playerId)
+    if (!player || player.currentWager === null || player.wagerLocked) return
+
+    const updatedPlayers = room.players.map(p =>
+      p.id === playerId ? { ...p, wagerLocked: true } : p
+    )
+
+    // Check if all players have locked in
+    const allLocked = updatedPlayers.every(p => p.wagerLocked)
+
+    const updates = { players: updatedPlayers }
+
+    if (allLocked) {
+      // Transition to answering phase
+      updates.phase = 'answering'
+      updates.current_question = {
+        ...room.current_question,
+        started_at: new Date().toISOString()
+      }
+    }
+
+    const { error: updateError } = await supabaseGames
+      .from('quiz_rooms')
+      .update(updates)
+      .eq('code', room.code)
+
+    if (updateError) setError(updateError.message)
+  }, [room, playerId])
+
   // Select question
   const selectQuestion = useCallback(async (questionIndex) => {
     if (!room || !isPicker || room.phase !== 'picking') return
@@ -832,6 +885,8 @@ export function useQuizRoom() {
     tryRejoin,
     leaveRoom,
     startGame,
+    selectWager,
+    lockWager,
     addBot,
     removeBot,
     selectQuestion,
