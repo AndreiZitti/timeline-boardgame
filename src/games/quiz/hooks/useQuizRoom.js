@@ -217,6 +217,7 @@ export function useQuizRoom() {
       }
 
       const code = generateRoomCode()
+      const sessionToken = generateSessionToken()
       const newRoom = {
         code,
         phase: 'lobby',
@@ -225,6 +226,7 @@ export function useQuizRoom() {
         players: [{
           id: playerId,
           name: hostName,
+          sessionToken,
           score: 0,
           hasAnswered: false,
           correctCount: 0,
@@ -248,6 +250,7 @@ export function useQuizRoom() {
       updateName(hostName)
       saveRoomCode(data.code)
       updateURLWithRoomCode(data.code)
+      updateURLWithSessionToken(sessionToken)
 
       setRoom(data)
       return data
@@ -283,11 +286,13 @@ export function useQuizRoom() {
         return existingRoom
       }
 
+      const sessionToken = generateSessionToken()
       const updatedPlayers = [
         ...existingRoom.players,
         {
           id: playerId,
           name: playerName,
+          sessionToken,
           score: 0,
           hasAnswered: false,
           correctCount: 0,
@@ -308,6 +313,10 @@ export function useQuizRoom() {
       updateName(playerName)
       saveRoomCode(data.code)
       updateURLWithRoomCode(data.code)
+      const myPlayer = data.players.find(p => p.id === playerId)
+      if (myPlayer?.sessionToken) {
+        updateURLWithSessionToken(myPlayer.sessionToken)
+      }
 
       setRoom(data)
       return data
@@ -548,6 +557,7 @@ export function useQuizRoom() {
   const leaveRoom = useCallback(() => {
     saveRoomCode(null)
     updateURLWithRoomCode(null)
+    updateURLWithSessionToken(null)
     setRoom(null)
     setError(null)
   }, [])
