@@ -3,7 +3,7 @@ import { supabase, supabaseGames } from '@/lib/supabase/client'
 import { generateRoomCode } from '@/lib/random'
 import { useUser } from '@/contexts/UserContext'
 import { isAnswerCorrect, calculatePoints } from '../utils/matching'
-import { buildBoardFromCache } from '../data/questions-db'
+import { buildBoardFromCache, buildQuickModeQuestions } from '../data/questions-db'
 
 // LocalStorage key
 const STORAGE_KEY = 'quizRoomCode'
@@ -263,16 +263,29 @@ export function useQuizRoom() {
     setError(null)
 
     try {
-      // Build board from cache (instant!)
       const categoryIds = theme?.categories || null
-      const { board } = buildBoardFromCache({ categoryIds })
+      let board = []
+      let questions = []
 
-      if (!board || board.length === 0) {
-        throw new Error('Failed to load questions. Please try again.')
+      if (gameMode === 'quick') {
+        // Quick mode: 10 questions
+        const result = buildQuickModeQuestions({ categoryIds })
+        questions = result.questions
+        if (!questions || questions.length === 0) {
+          throw new Error('Failed to load questions. Please try again.')
+        }
+      } else {
+        // Classic mode: 30-question board
+        const result = buildBoardFromCache({ categoryIds })
+        board = result.board
+        if (!board || board.length === 0) {
+          throw new Error('Failed to load questions. Please try again.')
+        }
       }
 
       const code = generateRoomCode()
       const sessionToken = generateSessionToken()
+
       const newRoom = {
         code,
         phase: 'lobby',
@@ -286,11 +299,20 @@ export function useQuizRoom() {
           hasAnswered: false,
           correctCount: 0,
           totalTime: 0,
-          answerCount: 0
+          answerCount: 0,
+          // Quick mode specific
+          ...(gameMode === 'quick' && {
+            availableBoxes: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+            currentWager: null,
+            wagerLocked: false
+          })
         }],
         host_id: playerId,
         picker_id: playerId,
-        board,
+        // Classic uses board, Quick uses questions
+        board: gameMode === 'classic' ? board : [],
+        questions: gameMode === 'quick' ? questions : [],
+        round_number: gameMode === 'quick' ? 0 : null,
         current_question: null
       }
 
@@ -342,6 +364,7 @@ export function useQuizRoom() {
       }
 
       const sessionToken = generateSessionToken()
+      const isQuickMode = existingRoom.game_mode === 'quick'
       const updatedPlayers = [
         ...existingRoom.players,
         {
@@ -352,7 +375,13 @@ export function useQuizRoom() {
           hasAnswered: false,
           correctCount: 0,
           totalTime: 0,
-          answerCount: 0
+          answerCount: 0,
+          // Quick mode specific
+          ...(isQuickMode && {
+            availableBoxes: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+            currentWager: null,
+            wagerLocked: false
+          })
         }
       ]
 
