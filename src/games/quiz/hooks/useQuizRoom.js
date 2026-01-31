@@ -98,10 +98,33 @@ export function useQuizRoom() {
     ? [...new Set(room.board.map(q => q.category))]
     : []
 
-  // Current question
+  // Current question (classic mode - from board)
   const currentQuestion = room?.current_question
     ? room.board?.[room.current_question.index]
     : null
+
+  // Quick mode current question (from questions array)
+  const quickCurrentQuestion = room?.game_mode === 'quick' && room?.current_question
+    ? room.questions?.[room.current_question.index]
+    : null
+
+  // Effective current question (works for both modes)
+  const effectiveCurrentQuestion = room?.game_mode === 'quick'
+    ? quickCurrentQuestion
+    : currentQuestion
+
+  // Current player's wager info
+  const currentWager = currentPlayer?.currentWager ?? null
+  const wagerLocked = currentPlayer?.wagerLocked ?? false
+  const availableBoxes = currentPlayer?.availableBoxes ?? []
+
+  // All wagers (for display)
+  const playerWagers = room?.players?.map(p => ({
+    id: p.id,
+    name: p.name,
+    wager: p.currentWager,
+    locked: p.wagerLocked
+  })) ?? []
 
   // Timer
   const [timeRemaining, setTimeRemaining] = useState(ROUND_DURATION)
@@ -975,11 +998,18 @@ export function useQuizRoom() {
     isPicker,
     hasAnswered,
     categories,
-    currentQuestion,
+    currentQuestion: effectiveCurrentQuestion,
     timeRemaining,
     sortedPlayers,
     remainingQuestions,
     savedName: profile.name,
+    // Quick mode specific
+    currentWager,
+    wagerLocked,
+    availableBoxes,
+    playerWagers,
+    roundNumber: room?.round_number ?? 0,
+    // Actions
     createRoom,
     joinRoom,
     tryRejoin,
