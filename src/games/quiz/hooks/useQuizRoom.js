@@ -162,6 +162,7 @@ export function useQuizRoom() {
     const urlCode = getRoomCodeFromURL()
     const savedCode = getSavedRoomCode()
     const code = urlCode || savedCode
+    const sessionToken = getSessionTokenFromURL()
 
     if (!code) return null
 
@@ -176,17 +177,70 @@ export function useQuizRoom() {
       if (fetchError || !existingRoom) {
         saveRoomCode(null)
         updateURLWithRoomCode(null)
+        updateURLWithSessionToken(null)
         return null
       }
 
-      const existingPlayer = existingRoom.players.find(p => p.id === playerId)
+      // Try session token match first (works even with new playerId)
+      let existingPlayer = null
+      if (sessionToken) {
+        existingPlayer = existingRoom.players.find(p => p.sessionToken === sessionToken)
+      }
+
+      // Fall back to playerId match
+      if (!existingPlayer) {
+        existingPlayer = existingRoom.players.find(p => p.id === playerId)
+      }
+
       if (existingPlayer) {
+        // Update player's ID if rejoining via session token with different browser
+        if (existingPlayer.id !== playerId) {
+          const updatedPlayers = existingRoom.players.map(p =>
+            p.sessionToken === sessionToken ? { ...p, id: playerId } : p
+          )
+
+          // Also update host_id and picker_id if needed
+          const updates = { players: updatedPlayers }
+          if (existingRoom.host_id === existingPlayer.id) {
+            updates.host_id = playerId
+          }
+          if (existingRoom.picker_id === existingPlayer.id) {
+            updates.picker_id = playerId
+          }
+
+          const { error: updateError } = await supabaseGames
+            .from('quiz_rooms')
+            .update(updates)
+            .eq('code', code)
+
+          if (updateError) {
+            console.error('Failed to update player ID:', updateError)
+            // Continue anyway - realtime will sync eventually
+          }
+
+          // Use updated room data
+          const updatedRoom = {
+            ...existingRoom,
+            players: updatedPlayers,
+            host_id: updates.host_id || existingRoom.host_id,
+            picker_id: updates.picker_id || existingRoom.picker_id
+          }
+
+          saveRoomCode(updatedRoom.code)
+          updateURLWithRoomCode(updatedRoom.code)
+          updateURLWithSessionToken(existingPlayer.sessionToken)
+          setRoom(updatedRoom)
+          return updatedRoom
+        }
+
         saveRoomCode(existingRoom.code)
         updateURLWithRoomCode(existingRoom.code)
+        updateURLWithSessionToken(existingPlayer.sessionToken)
         setRoom(existingRoom)
         return existingRoom
       }
 
+      // URL has room code but player not in room - prompt to join
       if (urlCode) {
         return { code: urlCode, needsJoin: true }
       }
@@ -196,6 +250,7 @@ export function useQuizRoom() {
     } catch (err) {
       saveRoomCode(null)
       updateURLWithRoomCode(null)
+      updateURLWithSessionToken(null)
       return null
     } finally {
       setLoading(false)
