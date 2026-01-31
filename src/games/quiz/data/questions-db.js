@@ -1,5 +1,5 @@
 // Database-backed questions for Quiz game
-// Uses Supabase to store questions with like/dislike tracking
+// Questions are cached on first load for instant board building
 
 import { supabaseGames } from '@/lib/supabase/client'
 
@@ -31,6 +31,10 @@ export const ALL_CATEGORIES = [
   { id: 32, name: 'Entertainment: Cartoon & Animations', short: 'Cartoons' }
 ]
 
+// Questions cache
+let questionsCache = null
+let cachePromise = null
+
 // Get category short name
 export function getCategoryShortName(categoryId) {
   return ALL_CATEGORIES.find(c => c.id === categoryId)?.short || 'Unknown'
@@ -47,117 +51,151 @@ function shuffleArray(array) {
 }
 
 /**
- * Fetch a board of questions from the database
- * @param {Object} options
- * @param {number[]} options.categoryIds - Array of category IDs to include (default: random 6)
- * @param {string[]} options.difficulties - Array of difficulties to include (default: all)
- * @param {string[]} options.types - Array of types to include (default: all)
- * @param {number} options.minQuality - Minimum (likes - dislikes) score (default: -5)
- * @returns {Promise<{board: Array, categories: string[]}>}
+ * Load all questions into cache (call this once on game load)
  */
-export async function fetchBoardFromDB(options = {}) {
+export async function loadQuestionsCache() {
+  // If already cached, return immediately
+  if (questionsCache) {
+    return { success: true, count: questionsCache.length }
+  }
+
+  // If already loading, wait for it
+  if (cachePromise) {
+    return cachePromise
+  }
+
+  // Start loading
+  cachePromise = (async () => {
+    console.log('Loading questions cache...')
+    const startTime = Date.now()
+
+    const { data: questions, error } = await supabaseGames
+      .from('quiz_questions')
+      .select('*')
+      .gte('likes', 0)
+      .order('likes', { ascending: false })
+
+    if (error) {
+      console.error('Failed to load questions:', error)
+      cachePromise = null
+      return { success: false, error: error.message }
+    }
+
+    questionsCache = questions || []
+    const elapsed = Date.now() - startTime
+    console.log(`Loaded ${questionsCache.length} questions in ${elapsed}ms`)
+
+    return { success: true, count: questionsCache.length }
+  })()
+
+  return cachePromise
+}
+
+/**
+ * Check if cache is loaded
+ */
+export function isCacheLoaded() {
+  return questionsCache !== null
+}
+
+/**
+ * Get cache status
+ */
+export function getCacheStatus() {
+  if (questionsCache) {
+    return { loaded: true, count: questionsCache.length }
+  }
+  if (cachePromise) {
+    return { loaded: false, loading: true }
+  }
+  return { loaded: false, loading: false }
+}
+
+/**
+ * Build a board from cached questions (instant!)
+ */
+export function buildBoardFromCache(options = {}) {
+  if (!questionsCache || questionsCache.length === 0) {
+    console.error('Questions cache not loaded!')
+    return { board: [], categories: [] }
+  }
+
   const {
-    categoryIds = null, // null = random 6
+    categoryIds = null,
     difficulties = ['easy', 'medium', 'hard'],
     types = ['multiple', 'boolean'],
     minQuality = -5
   } = options
 
-  // Select 6 random categories from the allowed ones
+  // Filter questions by type and quality
+  let filtered = questionsCache.filter(q => 
+    types.includes(q.type) && 
+    (q.likes - q.dislikes) >= minQuality
+  )
+
+  // Get available category IDs from filtered questions
+  const availableCategoryIds = [...new Set(filtered.map(q => q.category_id))]
+
+  // Select 6 categories
   let selectedCategories
-  if (categoryIds && categoryIds.length >= 6) {
-    // Shuffle and pick 6 from the allowed categories
-    const shuffled = shuffleArray([...categoryIds])
+  if (categoryIds && categoryIds.length > 0) {
+    // Use provided categories that are available
+    const validCategories = categoryIds.filter(id => availableCategoryIds.includes(id))
+    const shuffled = shuffleArray(validCategories)
     selectedCategories = shuffled.slice(0, 6)
-  } else if (categoryIds && categoryIds.length > 0) {
-    // Use all provided categories if less than 6
-    selectedCategories = categoryIds
+    
+    // If not enough, fill with random available categories
+    if (selectedCategories.length < 6) {
+      const remaining = availableCategoryIds.filter(id => !selectedCategories.includes(id))
+      const shuffledRemaining = shuffleArray(remaining)
+      selectedCategories = [...selectedCategories, ...shuffledRemaining].slice(0, 6)
+    }
   } else {
-    const shuffled = shuffleArray(ALL_CATEGORIES)
-    selectedCategories = shuffled.slice(0, 6).map(c => c.id)
+    // Random 6 categories
+    const shuffled = shuffleArray(availableCategoryIds)
+    selectedCategories = shuffled.slice(0, 6)
   }
 
   const board = []
   const categories = []
-  const questionIds = []
 
-  // Fetch 5 questions per category (one for each point value)
-  // Sort by quality (likes - dislikes) and randomize within quality tiers
   for (const categoryId of selectedCategories) {
     const catInfo = ALL_CATEGORIES.find(c => c.id === categoryId)
     categories.push(catInfo?.short || 'Unknown')
 
-    // Build query with filters
-    let query = supabaseGames
-      .from('quiz_questions')
-      .select('*')
-      .eq('category_id', categoryId)
-      .gte('likes', 0)
+    // Get questions for this category
+    const catQuestions = filtered.filter(q => q.category_id === categoryId)
 
-    // Filter by types
-    if (types.length === 1) {
-      query = query.eq('type', types[0])
-    } else if (types.length > 0 && types.length < 2) {
-      query = query.in('type', types)
-    }
+    // Separate by difficulty
+    const easy = shuffleArray(catQuestions.filter(q => 
+      q.difficulty === 'easy' && difficulties.includes('easy')
+    ))
+    const medium = shuffleArray(catQuestions.filter(q => 
+      q.difficulty === 'medium' && difficulties.includes('medium')
+    ))
+    const hard = shuffleArray(catQuestions.filter(q => 
+      q.difficulty === 'hard' && difficulties.includes('hard')
+    ))
 
-    // Filter by difficulties
-    if (difficulties.length > 0 && difficulties.length < 3) {
-      query = query.in('difficulty', difficulties)
-    }
-
-    // Get more than needed so we can randomize
-    const { data: questions, error } = await query
-      .order('likes', { ascending: false })
-      .limit(50)
-
-    if (error) {
-      console.error(`Error fetching questions for category ${categoryId}:`, error)
-      // Add placeholder questions
-      for (let i = 0; i < 5; i++) {
-        board.push(createPlaceholderQuestion(board.length, catInfo?.short || 'Unknown', [100, 200, 300, 400, 500][i]))
-      }
-      continue
-    }
-
-    // Filter by quality
-    const goodQuestions = questions.filter(q => (q.likes - q.dislikes) >= minQuality)
-
-    // Separate by difficulty for point value assignment (only use allowed difficulties)
-    const easy = difficulties.includes('easy')
-      ? shuffleArray(goodQuestions.filter(q => q.difficulty === 'easy'))
-      : []
-    const medium = difficulties.includes('medium')
-      ? shuffleArray(goodQuestions.filter(q => q.difficulty === 'medium'))
-      : []
-    const hard = difficulties.includes('hard')
-      ? shuffleArray(goodQuestions.filter(q => q.difficulty === 'hard'))
-      : []
-    
-    // Assign questions to point values
-    // 100, 200 = easy; 300 = medium; 400, 500 = hard
-    const selected = []
-    
-    // 100 points - easy
-    selected.push(easy[0] || medium[0] || hard[0] || null)
-    // 200 points - easy
-    selected.push(easy[1] || medium[1] || hard[1] || null)
-    // 300 points - medium
-    selected.push(medium[0] || easy[2] || hard[2] || null)
-    // 400 points - hard
-    selected.push(hard[0] || medium[2] || easy[3] || null)
-    // 500 points - hard
-    selected.push(hard[1] || medium[3] || easy[4] || null)
+    // Pick questions for each point value
+    const selected = [
+      easy[0] || medium[0] || hard[0] || null,  // 100
+      easy[1] || medium[1] || hard[1] || null,  // 200
+      medium[0] || easy[2] || hard[2] || null,  // 300
+      hard[0] || medium[2] || easy[3] || null,  // 400
+      hard[1] || medium[3] || easy[4] || null   // 500
+    ]
 
     const values = [100, 200, 300, 400, 500]
     for (let i = 0; i < 5; i++) {
       const q = selected[i]
       if (q) {
-        questionIds.push(q.id)
+        const incorrectAnswers = Array.isArray(q.incorrect_answers) ? q.incorrect_answers : []
         board.push({
           index: board.length,
-          id: q.id, // Database ID for voting
+          id: q.id,
           category: catInfo?.short || q.category,
+          category_id: categoryId,
           value: values[i],
           question: q.question,
           answer: q.correct_answer,
@@ -166,128 +204,115 @@ export async function fetchBoardFromDB(options = {}) {
           type: q.type,
           options: q.type === 'boolean'
             ? ['True', 'False']
-            : shuffleArray([q.correct_answer, ...q.incorrect_answers]),
-          difficulty: q.difficulty,
-          likes: q.likes,
-          dislikes: q.dislikes
+            : shuffleArray([q.correct_answer, ...incorrectAnswers]),
+          difficulty: q.difficulty
         })
       } else {
-        board.push(createPlaceholderQuestion(board.length, catInfo?.short || 'Unknown', values[i]))
+        // Placeholder if no question available
+        board.push({
+          index: board.length,
+          id: null,
+          category: catInfo?.short || 'Unknown',
+          category_id: categoryId,
+          value: values[i],
+          question: 'Question not available',
+          answer: 'N/A',
+          alternates: [],
+          used: false,
+          type: 'multiple',
+          options: ['N/A', 'N/A', 'N/A', 'N/A'],
+          difficulty: 'medium'
+        })
       }
-    }
-  }
-
-  // Increment times_shown for all selected questions
-  if (questionIds.length > 0) {
-    try {
-      await supabaseGames.rpc('increment_question_shown', { question_ids: questionIds })
-    } catch (e) {
-      console.warn('Could not increment times_shown:', e)
     }
   }
 
   return { board, categories }
 }
 
-// Create a placeholder question when DB is empty
-function createPlaceholderQuestion(index, category, value) {
-  return {
-    index,
-    id: null,
-    category,
-    value,
-    question: 'Question not available - please run the fetch script',
-    answer: 'N/A',
-    alternates: [],
-    used: false,
-    type: 'multiple',
-    options: ['N/A', 'N/A', 'N/A', 'N/A'],
-    difficulty: 'medium',
-    likes: 0,
-    dislikes: 0
-  }
-}
-
 /**
- * Vote on a question (like or dislike)
- * @param {string} questionId - Database ID of the question
- * @param {string} playerId - Player ID
- * @param {number} vote - 1 for like, -1 for dislike
- * @returns {Promise<{success: boolean, error?: string}>}
+ * Build 10 questions for Quick Mode
+ * Each from a different category if possible
  */
-export async function voteOnQuestion(questionId, playerId, vote) {
-  if (!questionId) return { success: false, error: 'No question ID' }
-  
-  const { error } = await supabaseGames
-    .from('quiz_question_votes')
-    .insert({
-      question_id: questionId,
-      player_id: playerId,
-      vote
-    })
+export function buildQuickModeQuestions(options = {}) {
+  if (!questionsCache || questionsCache.length === 0) {
+    console.error('Questions cache not loaded!')
+    return { questions: [] }
+  }
 
-  if (error) {
-    if (error.code === '23505') {
-      // Unique constraint violation - already voted
-      return { success: false, error: 'Already voted' }
+  const {
+    categoryIds = null,
+    types = ['multiple', 'boolean'],
+    minQuality = -5
+  } = options
+
+  // Filter questions by type and quality
+  let filtered = questionsCache.filter(q =>
+    types.includes(q.type) &&
+    (q.likes - q.dislikes) >= minQuality
+  )
+
+  // Get available category IDs
+  const availableCategoryIds = [...new Set(filtered.map(q => q.category_id))]
+
+  // Select up to 10 different categories
+  let selectedCategories
+  if (categoryIds && categoryIds.length > 0) {
+    const validCategories = categoryIds.filter(id => availableCategoryIds.includes(id))
+    selectedCategories = shuffleArray(validCategories).slice(0, 10)
+  } else {
+    selectedCategories = shuffleArray(availableCategoryIds).slice(0, 10)
+  }
+
+  // If fewer than 10 categories, allow repeats
+  while (selectedCategories.length < 10) {
+    const randomCat = availableCategoryIds[Math.floor(Math.random() * availableCategoryIds.length)]
+    selectedCategories.push(randomCat)
+  }
+
+  const questions = []
+
+  for (let i = 0; i < 10; i++) {
+    const categoryId = selectedCategories[i]
+    const catInfo = ALL_CATEGORIES.find(c => c.id === categoryId)
+
+    // Get questions for this category not already used
+    const usedIds = questions.map(q => q.id)
+    const available = shuffleArray(
+      filtered.filter(q => q.category_id === categoryId && !usedIds.includes(q.id))
+    )
+
+    const q = available[0]
+    if (q) {
+      const incorrectAnswers = Array.isArray(q.incorrect_answers) ? q.incorrect_answers : []
+      questions.push({
+        index: i,
+        id: q.id,
+        category: catInfo?.short || q.category,
+        category_id: categoryId,
+        question: q.question,
+        answer: q.correct_answer,
+        type: q.type,
+        options: q.type === 'boolean'
+          ? ['True', 'False']
+          : shuffleArray([q.correct_answer, ...incorrectAnswers]),
+        difficulty: q.difficulty
+      })
     }
-    return { success: false, error: error.message }
   }
 
-  return { success: true }
+  return { questions }
 }
 
 /**
- * Check if player has already voted on a question
- * @param {string} questionId
- * @param {string} playerId
- * @returns {Promise<number|null>} 1, -1, or null if not voted
+ * Legacy function - now uses cache
  */
-export async function getPlayerVote(questionId, playerId) {
-  if (!questionId) return null
+export async function fetchBoardFromDB(options = {}) {
+  // Ensure cache is loaded
+  if (!questionsCache) {
+    await loadQuestionsCache()
+  }
   
-  const { data, error } = await supabaseGames
-    .from('quiz_question_votes')
-    .select('vote')
-    .eq('question_id', questionId)
-    .eq('player_id', playerId)
-    .single()
-
-  if (error || !data) return null
-  return data.vote
-}
-
-/**
- * Get question statistics
- * @returns {Promise<Object>} Stats about the question database
- */
-export async function getQuestionStats() {
-  const { data, error } = await supabaseGames
-    .from('quiz_questions')
-    .select('category_id, difficulty, type', { count: 'exact' })
-
-  if (error) {
-    return { total: 0, byCategory: {}, byDifficulty: {}, byType: {} }
-  }
-
-  const stats = {
-    total: data.length,
-    byCategory: {},
-    byDifficulty: { easy: 0, medium: 0, hard: 0 },
-    byType: { multiple: 0, boolean: 0 }
-  }
-
-  for (const q of data) {
-    // By category
-    const catName = getCategoryShortName(q.category_id)
-    stats.byCategory[catName] = (stats.byCategory[catName] || 0) + 1
-    
-    // By difficulty
-    stats.byDifficulty[q.difficulty] = (stats.byDifficulty[q.difficulty] || 0) + 1
-    
-    // By type
-    stats.byType[q.type] = (stats.byType[q.type] || 0) + 1
-  }
-
-  return stats
+  // Build from cache (instant)
+  return buildBoardFromCache(options)
 }
