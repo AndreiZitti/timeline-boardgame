@@ -644,22 +644,61 @@ export function useQuizRoom() {
   const continueGame = useCallback(async () => {
     if (!room || room.phase !== 'reveal') return
 
-    const remainingQ = room.board.filter(q => !q.used).length
+    const isQuickMode = room.game_mode === 'quick'
 
-    if (remainingQ === 0) {
-      const { error: updateError } = await supabaseGames
-        .from('quiz_rooms')
-        .update({ phase: 'ended', current_question: null })
-        .eq('code', room.code)
+    if (isQuickMode) {
+      // Quick mode: check if more rounds
+      if (room.round_number >= 10) {
+        const { error: updateError } = await supabaseGames
+          .from('quiz_rooms')
+          .update({ phase: 'ended', current_question: null })
+          .eq('code', room.code)
+        if (updateError) setError(updateError.message)
+      } else {
+        // Start next round (wagering phase)
+        const nextRound = room.round_number + 1
+        const question = room.questions[nextRound - 1]
 
-      if (updateError) setError(updateError.message)
+        const updatedPlayers = room.players.map(p => ({
+          ...p,
+          currentWager: null,
+          wagerLocked: false,
+          hasAnswered: false
+        }))
+
+        const { error: updateError } = await supabaseGames
+          .from('quiz_rooms')
+          .update({
+            phase: 'wagering',
+            round_number: nextRound,
+            players: updatedPlayers,
+            current_question: {
+              index: nextRound - 1,
+              category: question.category,
+              started_at: null,
+              submissions: []
+            }
+          })
+          .eq('code', room.code)
+        if (updateError) setError(updateError.message)
+      }
     } else {
-      const { error: updateError } = await supabaseGames
-        .from('quiz_rooms')
-        .update({ phase: 'picking', current_question: null })
-        .eq('code', room.code)
+      // Classic mode: check remaining questions
+      const remainingQ = room.board.filter(q => !q.used).length
 
-      if (updateError) setError(updateError.message)
+      if (remainingQ === 0) {
+        const { error: updateError } = await supabaseGames
+          .from('quiz_rooms')
+          .update({ phase: 'ended', current_question: null })
+          .eq('code', room.code)
+        if (updateError) setError(updateError.message)
+      } else {
+        const { error: updateError } = await supabaseGames
+          .from('quiz_rooms')
+          .update({ phase: 'picking', current_question: null })
+          .eq('code', room.code)
+        if (updateError) setError(updateError.message)
+      }
     }
   }, [room])
 
