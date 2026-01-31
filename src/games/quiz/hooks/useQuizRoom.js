@@ -550,7 +550,11 @@ export function useQuizRoom() {
   const revealAnswers = useCallback(async () => {
     if (!room || room.phase !== 'answering') return
 
-    const question = room.board[room.current_question.index]
+    const isQuickMode = room.game_mode === 'quick'
+    const question = isQuickMode
+      ? room.questions[room.current_question.index]
+      : room.board[room.current_question.index]
+
     const submissions = room.current_question.submissions || []
 
     const evaluatedSubmissions = submissions.map(s => {
@@ -560,8 +564,7 @@ export function useQuizRoom() {
       } else {
         isCorrect = isAnswerCorrect(s.answer, question.answer, question.alternates)
       }
-      
-      // Calculate response time
+
       const startTime = new Date(room.current_question.started_at).getTime()
       const submitTime = new Date(s.submitted_at).getTime()
       const responseTime = (submitTime - startTime) / 1000
@@ -569,32 +572,54 @@ export function useQuizRoom() {
       return { ...s, correct: isCorrect, responseTime }
     })
 
-    const pointsAwarded = calculatePoints(evaluatedSubmissions, question.value)
+    let updatedPlayers
+    let updatedBoard = room.board
+    let nextPickerId = room.picker_id
 
-    // Update player scores and stats
-    const updatedPlayers = room.players.map(p => {
-      const awarded = pointsAwarded.find(pa => pa.player_id === p.id)
-      const submission = evaluatedSubmissions.find(s => s.player_id === p.id)
-      
-      if (awarded && submission) {
+    if (isQuickMode) {
+      // Quick mode: score based on wager, remove used box
+      updatedPlayers = room.players.map(p => {
+        const submission = evaluatedSubmissions.find(s => s.player_id === p.id)
+        const wager = p.currentWager || 0
+        const pointsEarned = submission?.correct ? wager : 0
+
         return {
           ...p,
-          score: p.score + awarded.points,
-          correctCount: submission.correct ? (p.correctCount || 0) + 1 : (p.correctCount || 0),
-          totalTime: (p.totalTime || 0) + (submission.responseTime || 0),
-          answerCount: (p.answerCount || 0) + 1
+          score: p.score + pointsEarned,
+          correctCount: submission?.correct ? (p.correctCount || 0) + 1 : (p.correctCount || 0),
+          totalTime: (p.totalTime || 0) + (submission?.responseTime || 0),
+          answerCount: (p.answerCount || 0) + 1,
+          // Remove used box
+          availableBoxes: p.availableBoxes.filter(b => b !== p.currentWager)
         }
+      })
+    } else {
+      // Classic mode: existing point calculation
+      const pointsAwarded = calculatePoints(evaluatedSubmissions, question.value)
+
+      updatedPlayers = room.players.map(p => {
+        const awarded = pointsAwarded.find(pa => pa.player_id === p.id)
+        const submission = evaluatedSubmissions.find(s => s.player_id === p.id)
+
+        if (awarded && submission) {
+          return {
+            ...p,
+            score: p.score + awarded.points,
+            correctCount: submission.correct ? (p.correctCount || 0) + 1 : (p.correctCount || 0),
+            totalTime: (p.totalTime || 0) + (submission.responseTime || 0),
+            answerCount: (p.answerCount || 0) + 1
+          }
+        }
+        return p
+      })
+
+      updatedBoard = room.board.map((q, i) =>
+        i === room.current_question.index ? { ...q, used: true } : q
+      )
+
+      if (pointsAwarded.length > 0) {
+        nextPickerId = pointsAwarded[0].player_id
       }
-      return p
-    })
-
-    const updatedBoard = room.board.map((q, i) =>
-      i === room.current_question.index ? { ...q, used: true } : q
-    )
-
-    let nextPickerId = room.picker_id
-    if (pointsAwarded.length > 0) {
-      nextPickerId = pointsAwarded[0].player_id
     }
 
     const { error: updateError } = await supabaseGames
@@ -607,7 +632,7 @@ export function useQuizRoom() {
         current_question: {
           ...room.current_question,
           submissions: evaluatedSubmissions,
-          points_awarded: pointsAwarded
+          points_awarded: isQuickMode ? null : calculatePoints(evaluatedSubmissions, question.value)
         }
       })
       .eq('code', room.code)
