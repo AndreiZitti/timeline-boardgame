@@ -1,64 +1,100 @@
-import { Confetti } from './Confetti'
-import { Podium } from './Podium'
-
 export function EndScreen({
   room,
+  sortedPlayers,
   isHost,
   onPlayAgain,
   onLeave
 }) {
-  const sortedPlayers = [...room.players].sort((a, b) => b.score - a.score)
-  const winner = sortedPlayers[0]
+  // Get rank emoji
+  const getRankEmoji = (index) => {
+    switch (index) {
+      case 0: return '🥇'
+      case 1: return '🥈'
+      case 2: return '🥉'
+      default: return `${index + 1}.`
+    }
+  }
+
+  // Get initials
+  const getInitials = (name) => {
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2)
+  }
+
+  // Calculate stats
+  const getStats = (player) => {
+    const accuracy = player.answerCount > 0
+      ? Math.round((player.correctCount / player.answerCount) * 100)
+      : 0
+    const avgTime = player.answerCount > 0
+      ? (player.totalTime / player.answerCount).toFixed(1)
+      : '—'
+    
+    return { accuracy, avgTime }
+  }
 
   return (
-    <div className="screen quiz-end quiz-game">
-      <Confetti active={true} pieceCount={60} duration={5000} />
-
-      <div className="end-header">
-        <h1>Game Over!</h1>
+    <div className="quiz-game quiz-end">
+      {/* Header */}
+      <div className="quiz-end__header">
+        <h1 className="quiz-end__title">Game Over</h1>
       </div>
 
-      <div className="winner-announcement">
-        <span className="winner-trophy" aria-label="Trophy">🏆</span>
-        <span className="winner-name">{winner?.name}</span>
-        <span className="winner-score">{winner?.score?.toLocaleString()} points</span>
-      </div>
+      {/* Leaderboard */}
+      <div className="quiz-leaderboard">
+        <h3 className="quiz-leaderboard__title">Final Standings</h3>
+        <ul className="quiz-leaderboard__list">
+          {sortedPlayers.map((player, index) => {
+            const { accuracy, avgTime } = getStats(player)
+            const isTopThree = index < 3
+            const isFirst = index === 0
 
-      <Podium players={sortedPlayers} />
-
-      {sortedPlayers.length > 3 && (
-        <div className="final-scores">
-          <h3>Full Results</h3>
-          <ul className="final-scores__list" role="list">
-            {sortedPlayers.slice(3).map((player, index) => (
-              <li key={player.id} className="final-score-item" role="listitem">
-                <span className="final-score-item__rank">{index + 4}.</span>
-                <div className="final-score-item__avatar" aria-hidden="true">
-                  {player.name.charAt(0).toUpperCase()}
+            return (
+              <li
+                key={player.id}
+                className={`quiz-leaderboard__item ${isTopThree ? 'quiz-leaderboard__item--top3' : ''} ${isFirst ? 'quiz-leaderboard__item--first' : ''}`}
+              >
+                <span className="quiz-leaderboard__rank">
+                  {getRankEmoji(index)}
+                </span>
+                <div className="quiz-leaderboard__avatar">
+                  {player.isBot ? '🤖' : getInitials(player.name)}
                 </div>
-                <span className="final-score-item__name">{player.name}</span>
-                <span className="final-score-item__score">{player.score?.toLocaleString()}</span>
+                <div className="quiz-leaderboard__info">
+                  <p className="quiz-leaderboard__name">{player.name}</p>
+                  <p className="quiz-leaderboard__stats">
+                    {accuracy}% accuracy · {avgTime}s avg
+                  </p>
+                </div>
+                <span className="quiz-leaderboard__score">
+                  {player.score.toLocaleString()}
+                </span>
               </li>
-            ))}
-          </ul>
-        </div>
-      )}
+            )
+          })}
+        </ul>
+      </div>
 
-      <div className="end-actions">
-        {isHost ? (
-          <>
-            <button className="btn btn-primary" onClick={onPlayAgain}>
-              Play Again
-            </button>
-            <button className="btn btn-secondary" onClick={onLeave}>
-              Leave
-            </button>
-          </>
-        ) : (
-          <button className="btn btn-secondary" onClick={onLeave}>
-            Leave Room
+      {/* Actions */}
+      <div className="quiz-end__actions">
+        {isHost && (
+          <button
+            className="quiz-btn quiz-btn--primary"
+            onClick={onPlayAgain}
+          >
+            Play Again
           </button>
         )}
+        <button
+          className="quiz-btn quiz-btn--secondary"
+          onClick={onLeave}
+        >
+          Leave
+        </button>
       </div>
     </div>
   )

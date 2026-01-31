@@ -4,9 +4,11 @@ import { RentzSetup } from "./RentzSetup";
 export function PlayerSetup({ config, onStart, onStartTeamGame, onStartRentz, defaultRentzConfig }) {
   const isTeamGame = config.isTeamGame || false;
   const isRentz = config.name === "Rentz";
+  const isWhist = config.name === "Whist";
   const isFixed = config.minPlayers === config.maxPlayers;
   const [playerCount, setPlayerCount] = useState(config.minPlayers);
   const [setupStep, setSetupStep] = useState("players"); // "players" or "rentz-config"
+  const [whistMode, setWhistMode] = useState('1-8-1'); // '1-8-1' or '8-1-8'
 
   // For individual games
   const [names, setNames] = useState(
@@ -56,6 +58,9 @@ export function PlayerSetup({ config, onStart, onStartTeamGame, onStartRentz, de
     } else if (isRentz) {
       // For Rentz, go to config step
       setSetupStep("rentz-config");
+    } else if (isWhist) {
+      const playerNames = names.slice(0, playerCount).map((n, i) => n.trim() || `Player ${i + 1}`);
+      onStart(playerNames, { whistMode });
     } else {
       const playerNames = names.slice(0, playerCount).map((n, i) => n.trim() || `Player ${i + 1}`);
       onStart(playerNames);
@@ -198,6 +203,30 @@ export function PlayerSetup({ config, onStart, onStartTeamGame, onStartRentz, de
           />
         ))}
       </div>
+
+      {isWhist && (
+        <div className="whist-mode-selector">
+          <h3>Round Pattern</h3>
+          <div className="mode-buttons">
+            <button
+              type="button"
+              className={`mode-btn ${whistMode === '1-8-1' ? 'active' : ''}`}
+              onClick={() => setWhistMode('1-8-1')}
+            >
+              <span className="mode-label">1 → 8 → 1</span>
+              <span className="mode-desc">Start with 1 card</span>
+            </button>
+            <button
+              type="button"
+              className={`mode-btn ${whistMode === '8-1-8' ? 'active' : ''}`}
+              onClick={() => setWhistMode('8-1-8')}
+            >
+              <span className="mode-label">8 → 1 → 8</span>
+              <span className="mode-desc">Start with 8 cards</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="button-group">
         <button className="btn btn-primary" onClick={handleStart} disabled={!canStart}>

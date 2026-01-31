@@ -90,7 +90,7 @@ export function GamePage({ gameType }) {
           </button>
           <PlayerSetup
             config={gameConfig}
-            onStart={(playerNames) => startGame(playerNames, gameType)}
+            onStart={(playerNames, customConfig) => startGame(playerNames, gameType, customConfig)}
             onStartTeamGame={startTeamGame}
             onStartRentz={handleStartRentz}
             defaultRentzConfig={DEFAULT_RENTZ_CONFIG}

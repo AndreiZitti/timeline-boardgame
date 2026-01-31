@@ -2,19 +2,25 @@ import { useState, useEffect, useCallback } from "react";
 
 const STORAGE_KEY_PREFIX = "scoreTracker_";
 
-// Generate Whist round pattern based on player count:
-// N x 1, 2-7, N x 8, 7-2, N x 1
-function generateWhistRoundCards(playerCount) {
+// Generate Whist round pattern based on player count and mode:
+// Mode '1-8-1': N x 1, 2-7, N x 8, 7-2, N x 1
+// Mode '8-1-8': N x 8, 7-2, N x 1, 2-7, N x 8
+function generateWhistRoundCards(playerCount, mode = '1-8-1') {
   const ones = Array(playerCount).fill(1);
   const ascending = [2, 3, 4, 5, 6, 7];
   const eights = Array(playerCount).fill(8);
   const descending = [7, 6, 5, 4, 3, 2];
+
+  if (mode === '8-1-8') {
+    return [...eights, ...descending, ...ones, ...ascending, ...eights];
+  }
+  // Default: 1-8-1
   return [...ones, ...ascending, ...eights, ...descending, ...ones];
 }
 
 // Generate full Whist data structure with all rounds pre-populated
-function generateWhistData(playerCount) {
-  const cardPattern = generateWhistRoundCards(playerCount);
+function generateWhistData(playerCount, mode = '1-8-1') {
+  const cardPattern = generateWhistRoundCards(playerCount, mode);
   return cardPattern.map((cards, index) => ({
     index,
     cards,
@@ -218,6 +224,7 @@ export function useScoreTracker(initialGameType = null) {
   const [teams, setTeams] = useState([]); // For team games like Septica: [["P1", "P3"], ["P2", "P4"]]
   const [rounds, setRounds] = useState([]); // For Septica/Rentz
   const [whistData, setWhistData] = useState([]); // For Whist: pre-populated rounds with phases
+  const [whistMode, setWhistMode] = useState('1-8-1'); // Whist round pattern: '1-8-1' or '8-1-8'
   const [rentzConfig, setRentzConfig] = useState(DEFAULT_RENTZ_CONFIG); // Rentz scoring config
   const [rentzData, setRentzData] = useState([]); // For Rentz: dealers and mini-games
   // General tracker state
@@ -240,6 +247,7 @@ export function useScoreTracker(initialGameType = null) {
       setTeams(stored.teams || []);
       setRounds(stored.rounds || []);
       setWhistData(stored.whistData || []);
+      setWhistMode(stored.whistMode || '1-8-1');
       setRentzConfig(stored.rentzConfig || DEFAULT_RENTZ_CONFIG);
       setRentzData(stored.rentzData || []);
       setGeneralData(stored.generalData || []);
@@ -263,6 +271,7 @@ export function useScoreTracker(initialGameType = null) {
         teams,
         rounds,
         whistData,
+        whistMode,
         rentzConfig,
         rentzData,
         generalData,
@@ -270,14 +279,14 @@ export function useScoreTracker(initialGameType = null) {
         updatedAt: new Date().toISOString(),
       });
     }
-  }, [isLoaded, initialGameType, gameType, players, teams, rounds, whistData, rentzConfig, rentzData, generalData, generalCurrentPlayer]);
+  }, [isLoaded, initialGameType, gameType, players, teams, rounds, whistData, whistMode, rentzConfig, rentzData, generalData, generalCurrentPlayer]);
 
   const selectGame = useCallback((type) => {
     setGameType(type);
     setPhase("setup");
   }, []);
 
-  const startGame = useCallback((playerNames, gameTypeOverride = null, customRentzConfig = null) => {
+  const startGame = useCallback((playerNames, gameTypeOverride = null, customConfig = null) => {
     const type = gameTypeOverride || gameType;
 
     setPlayers(playerNames);
@@ -286,15 +295,17 @@ export function useScoreTracker(initialGameType = null) {
 
     // Generate whistData for Whist
     if (type === "whist") {
-      setWhistData(generateWhistData(playerNames.length));
+      const mode = customConfig?.whistMode || '1-8-1';
+      setWhistMode(mode);
+      setWhistData(generateWhistData(playerNames.length, mode));
     } else {
       setWhistData([]);
     }
 
     // Generate rentzData for Rentz
     if (type === "rentz") {
-      if (customRentzConfig) {
-        setRentzConfig(customRentzConfig);
+      if (customConfig) {
+        setRentzConfig(customConfig);
       }
       setRentzData(generateRentzData(playerNames.length));
     } else {
@@ -599,6 +610,7 @@ export function useScoreTracker(initialGameType = null) {
     setTeams([]);
     setRounds([]);
     setWhistData([]);
+    setWhistMode('1-8-1');
     setRentzData([]);
     setRentzConfig(DEFAULT_RENTZ_CONFIG);
     setGeneralData([]);
@@ -681,6 +693,7 @@ export function useScoreTracker(initialGameType = null) {
     teams,
     rounds,
     whistData,
+    whistMode,
     rentzConfig,
     rentzData,
     generalData,
