@@ -1,17 +1,22 @@
 import { useState, useEffect } from 'react'
 import './quiz.css'
 import { useQuizRoom } from './hooks/useQuizRoom'
-import { CreateRoom } from './components/CreateRoom'
+import { loadQuestionsCache, getCacheStatus } from './data/questions-db'
+import { Setup } from './components/Setup'
 import { JoinRoom } from './components/JoinRoom'
 import { Lobby } from './components/Lobby'
 import { Board } from './components/Board'
+import { WageringScreen } from './components/WageringScreen'
 import { QuestionRound } from './components/QuestionRound'
 import { RevealScreen } from './components/RevealScreen'
 import { EndScreen } from './components/EndScreen'
 
 export function QuizGame({ onBack }) {
   const [screen, setScreen] = useState('home')
+  const [gameMode, setGameMode] = useState(null)
   const [pendingRoomCode, setPendingRoomCode] = useState(null)
+  const [cacheLoading, setCacheLoading] = useState(true)
+  const [cacheError, setCacheError] = useState(null)
 
   const {
     room,
@@ -28,12 +33,20 @@ export function QuizGame({ onBack }) {
     sortedPlayers,
     remainingQuestions,
     savedName,
+    // Quick mode specific
+    currentWager,
+    wagerLocked,
+    availableBoxes,
+    playerWagers,
+    roundNumber,
+    // Actions
     createRoom,
     joinRoom,
     tryRejoin,
     leaveRoom,
-    selectPack,
     startGame,
+    selectWager,
+    lockWager,
     addBot,
     removeBot,
     selectQuestion,
@@ -44,6 +57,19 @@ export function QuizGame({ onBack }) {
     playAgain
   } = useQuizRoom()
 
+  // Load questions cache on mount
+  useEffect(() => {
+    const loadCache = async () => {
+      setCacheLoading(true)
+      const result = await loadQuestionsCache()
+      if (!result.success) {
+        setCacheError(result.error || 'Failed to load questions')
+      }
+      setCacheLoading(false)
+    }
+    loadCache()
+  }, [])
+
   // Try to rejoin on mount
   useEffect(() => {
     const attemptRejoin = async () => {
@@ -53,6 +79,7 @@ export function QuizGame({ onBack }) {
           setPendingRoomCode(result.code)
           setScreen('join')
         } else {
+          setGameMode('quick') // game_mode column not in DB yet
           setScreen('game')
         }
       }
@@ -60,9 +87,15 @@ export function QuizGame({ onBack }) {
     attemptRejoin()
   }, [tryRejoin])
 
+  // Handle mode selection
+  const handleSelectMode = (mode) => {
+    setGameMode(mode)
+    setScreen('setup')
+  }
+
   // Handle room creation
-  const handleCreateRoom = async (name) => {
-    const newRoom = await createRoom(name)
+  const handleCreateRoom = async (name, theme) => {
+    const newRoom = await createRoom(name, gameMode, theme)
     if (newRoom) {
       setScreen('game')
     }
@@ -72,6 +105,7 @@ export function QuizGame({ onBack }) {
   const handleJoinRoom = async (code, name) => {
     const joinedRoom = await joinRoom(code, name)
     if (joinedRoom) {
+      setGameMode('quick') // game_mode column not in DB yet
       setScreen('game')
     }
   }
@@ -79,47 +113,113 @@ export function QuizGame({ onBack }) {
   // Handle leaving
   const handleLeave = () => {
     leaveRoom()
+    setGameMode(null)
     setScreen('home')
   }
 
-  // Home screen
-  if (screen === 'home') {
+  // Show loading while cache loads
+  if (cacheLoading) {
     return (
-      <div className="screen quiz-home quiz-game">
-        <button className="btn-back" onClick={onBack}>
-          &larr; Back to Games
+      <div className="quiz-game quiz-loading">
+        <div className="quiz-loading__spinner" />
+        <p className="quiz-loading__text">Loading questions...</p>
+      </div>
+    )
+  }
+
+  // Show error if cache failed
+  if (cacheError) {
+    return (
+      <div className="quiz-game quiz-home">
+        <button className="quiz-back" onClick={onBack}>
+          ← Back to Games
+        </button>
+        <div className="quiz-error" style={{ marginTop: '2rem' }}>
+          Failed to load questions: {cacheError}
+        </div>
+        <button 
+          className="quiz-btn quiz-btn--primary" 
+          style={{ marginTop: '1rem' }}
+          onClick={() => window.location.reload()}
+        >
+          Try Again
+        </button>
+      </div>
+    )
+  }
+
+  // Home screen with mode selection
+  if (screen === 'home') {
+    const status = getCacheStatus()
+    
+    return (
+      <div className="quiz-game quiz-home">
+        <button className="quiz-back" onClick={onBack}>
+          ← Back to Games
         </button>
 
-        <h1>QUIZ</h1>
-        <p className="subtitle">Race to answer. Fastest correct wins the most!</p>
-
-        <div className="how-to-play">
-          <ul>
-            <li>6 categories with 5 questions each (100-500 points)</li>
-            <li>Everyone answers each question within 60 seconds</li>
-            <li>Fastest correct answer gets full points, slower ones get less</li>
-            <li>Winner of each round picks the next question</li>
-            <li>Clear the board to win!</li>
-          </ul>
+        <div className="quiz-home__header">
+          <h1 className="quiz-title">Quiz</h1>
+          <p className="quiz-subtitle">Test your knowledge against friends</p>
+          {status.loaded && (
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '0.5rem' }}>
+              {status.count.toLocaleString()} questions loaded
+            </p>
+          )}
         </div>
 
-        <div className="button-group">
-          <button className="btn btn-primary" onClick={() => setScreen('create')}>
-            Create Room
+        <div className="quiz-home__modes">
+          <button
+            className="quiz-mode-card"
+            onClick={() => handleSelectMode('quick')}
+          >
+            <div className="quiz-mode-card__icon">⚡</div>
+            <div className="quiz-mode-card__content">
+              <h3 className="quiz-mode-card__title">Quick Game</h3>
+              <p className="quiz-mode-card__desc">5 rapid-fire questions, fast pace</p>
+            </div>
+            <span className="quiz-mode-card__arrow">→</span>
           </button>
-          <button className="btn btn-secondary" onClick={() => setScreen('join')}>
-            Join Room
+
+          {/* Classic Game - hidden for now
+          <button
+            className="quiz-mode-card"
+            onClick={() => handleSelectMode('classic')}
+          >
+            <div className="quiz-mode-card__icon">📋</div>
+            <div className="quiz-mode-card__content">
+              <h3 className="quiz-mode-card__title">Classic Game</h3>
+              <p className="quiz-mode-card__desc">Full board, pick your questions</p>
+            </div>
+            <span className="quiz-mode-card__arrow">→</span>
+          </button>
+          */}
+
+          <button
+            className="quiz-mode-card"
+            onClick={() => setScreen('join')}
+          >
+            <div className="quiz-mode-card__icon">🚪</div>
+            <div className="quiz-mode-card__content">
+              <h3 className="quiz-mode-card__title">Join Room</h3>
+              <p className="quiz-mode-card__desc">Enter a room code to join</p>
+            </div>
+            <span className="quiz-mode-card__arrow">→</span>
           </button>
         </div>
       </div>
     )
   }
 
-  // Create room screen
-  if (screen === 'create') {
+  // Setup screen (create room)
+  if (screen === 'setup') {
     return (
-      <CreateRoom
-        onBack={() => setScreen('home')}
+      <Setup
+        gameMode={gameMode}
+        onBack={() => {
+          setGameMode(null)
+          setScreen('home')
+        }}
         onCreateRoom={handleCreateRoom}
         loading={loading}
         error={error}
@@ -132,7 +232,10 @@ export function QuizGame({ onBack }) {
   if (screen === 'join') {
     return (
       <JoinRoom
-        onBack={() => setScreen('home')}
+        onBack={() => {
+          setPendingRoomCode(null)
+          setScreen('home')
+        }}
         onJoinRoom={handleJoinRoom}
         loading={loading}
         error={error}
@@ -149,8 +252,8 @@ export function QuizGame({ onBack }) {
       return (
         <Lobby
           room={room}
+          gameMode={gameMode}
           isHost={isHost}
-          onSelectPack={selectPack}
           onStartGame={startGame}
           onLeave={handleLeave}
           onAddBot={addBot}
@@ -161,16 +264,34 @@ export function QuizGame({ onBack }) {
       )
     }
 
-    // Picking phase
+    // Picking phase (classic mode)
     if (room.phase === 'picking') {
       return (
         <Board
           room={room}
           categories={categories}
           isPicker={isPicker}
+          sortedPlayers={sortedPlayers}
           onSelectQuestion={selectQuestion}
           isHost={isHost}
           onEndGame={endGameEarly}
+        />
+      )
+    }
+
+    // Wagering phase (quick mode)
+    if (room.phase === 'wagering') {
+      return (
+        <WageringScreen
+          room={room}
+          roundNumber={roundNumber}
+          currentQuestion={currentQuestion}
+          availableBoxes={availableBoxes}
+          currentWager={currentWager}
+          wagerLocked={wagerLocked}
+          playerWagers={playerWagers}
+          onSelectWager={selectWager}
+          onLockWager={lockWager}
         />
       )
     }
@@ -194,6 +315,7 @@ export function QuizGame({ onBack }) {
         <RevealScreen
           room={room}
           currentQuestion={currentQuestion}
+          isHost={isHost}
           onContinue={continueGame}
         />
       )
@@ -204,6 +326,7 @@ export function QuizGame({ onBack }) {
       return (
         <EndScreen
           room={room}
+          sortedPlayers={sortedPlayers}
           isHost={isHost}
           onPlayAgain={playAgain}
           onLeave={handleLeave}
@@ -214,8 +337,9 @@ export function QuizGame({ onBack }) {
 
   // Fallback / Loading
   return (
-    <div className="screen quiz-loading quiz-game">
-      <p>Loading...</p>
+    <div className="quiz-game quiz-loading">
+      <div className="quiz-loading__spinner" />
+      <p className="quiz-loading__text">Loading...</p>
     </div>
   )
 }
