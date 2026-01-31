@@ -421,15 +421,51 @@ export function useQuizRoom() {
       return
     }
 
-    const { error: updateError } = await supabaseGames
-      .from('quiz_rooms')
-      .update({ phase: 'picking' })
-      .eq('code', room.code)
+    const isQuickMode = room.game_mode === 'quick'
 
-    if (!updateError) {
-      incrementGamesHosted()
+    if (isQuickMode) {
+      // Quick mode: start round 1 wagering
+      const question = room.questions[0]
+
+      const updatedPlayers = room.players.map(p => ({
+        ...p,
+        currentWager: null,
+        wagerLocked: false,
+        hasAnswered: false
+      }))
+
+      const { error: updateError } = await supabaseGames
+        .from('quiz_rooms')
+        .update({
+          phase: 'wagering',
+          round_number: 1,
+          players: updatedPlayers,
+          current_question: {
+            index: 0,
+            category: question.category,
+            started_at: null,
+            submissions: []
+          }
+        })
+        .eq('code', room.code)
+
+      if (!updateError) {
+        incrementGamesHosted()
+      } else {
+        setError(updateError.message)
+      }
     } else {
-      setError(updateError.message)
+      // Classic mode: go to picking phase
+      const { error: updateError } = await supabaseGames
+        .from('quiz_rooms')
+        .update({ phase: 'picking' })
+        .eq('code', room.code)
+
+      if (!updateError) {
+        incrementGamesHosted()
+      } else {
+        setError(updateError.message)
+      }
     }
   }, [room, isHost, incrementGamesHosted])
 
