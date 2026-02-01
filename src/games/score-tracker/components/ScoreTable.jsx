@@ -49,6 +49,7 @@ export function ScoreTable({
   onDeleteGeneralRound,
   onReset,
   onBackToMenu,
+  isViewOnly = false,
 }) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingRound, setEditingRound] = useState(null);
@@ -196,13 +197,20 @@ export function ScoreTable({
     return (
       <div className="score-table-container">
         <div className="score-table-header">
-          <button className="btn-back-menu" onClick={onBackToMenu}>
-            &larr; Score Tracker
-          </button>
-          <span className="score-table-title">{config.name}</span>
-          <button className="btn-reset" onClick={onReset}>
-            Reset
-          </button>
+          {!isViewOnly && (
+            <button className="btn-back-menu" onClick={onBackToMenu}>
+              &larr; Score Tracker
+            </button>
+          )}
+          <span className="score-table-title">
+            {config.name}
+            {isViewOnly && <span className="live-badge">LIVE</span>}
+          </span>
+          {!isViewOnly && (
+            <button className="btn-reset" onClick={onReset}>
+              Reset
+            </button>
+          )}
         </div>
 
         {/* Whist progress and actions bar */}
@@ -219,7 +227,7 @@ export function ScoreTable({
             </div>
           </div>
 
-          {whistActiveRoundIndex >= 0 && !whistIsComplete && (
+          {!isViewOnly && whistActiveRoundIndex >= 0 && !whistIsComplete && (
             <div className="whist-action-buttons">
               <button
                 className={`btn-action ${whistData[whistActiveRoundIndex].phase === 'bidding' ? 'active' : 'done'}`}
@@ -289,7 +297,7 @@ export function ScoreTable({
                     key={rowIndex}
                     ref={(el) => { whistRowRefs.current[rowIndex] = el; }}
                     className={`whist-row-simple ${round.phase} ${isActive ? 'active-round' : ''}`}
-                    onClick={() => isClickable && handleWhistRowClick(round, rowIndex)}
+                    onClick={() => !isViewOnly && isClickable && handleWhistRowClick(round, rowIndex)}
                   >
                     <td className="round-col cards-col">{round.cards}</td>
                     {players.map((_, playerIndex) => {
@@ -323,9 +331,11 @@ export function ScoreTable({
         {whistIsComplete && (
           <div className="game-complete-message">
             <p>Winner: <strong>{players[whistLeaderIndex]}</strong> with {whistTotals[whistLeaderIndex]} points!</p>
-            <button className="btn btn-export" onClick={handleExport}>
-              Export Results
-            </button>
+            {!isViewOnly && (
+              <button className="btn btn-export" onClick={handleExport}>
+                Export Results
+              </button>
+            )}
           </div>
         )}
 
