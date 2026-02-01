@@ -64,14 +64,38 @@ const games: Item[] = [
   },
 ];
 
-const tools: Item[] = [
+const trackers: Item[] = [
   {
-    id: "score-tracker",
-    name: "Score Tracker",
-    description: "Track scores for Septica, Whist, and Rentz.",
+    id: "septica",
+    name: "Septica",
+    description: "Track Septica card game scores.",
     available: true,
     accent: "#f59e0b",
-    href: "/score-tracker",
+    href: "/score-tracker/septica",
+  },
+  {
+    id: "whist",
+    name: "Whist",
+    description: "Track Whist card game scores.",
+    available: true,
+    accent: "#8b5cf6",
+    href: "/score-tracker/whist",
+  },
+  {
+    id: "rentz",
+    name: "Rentz",
+    description: "Track Rentz card game scores.",
+    available: true,
+    accent: "#ec4899",
+    href: "/score-tracker/rentz",
+  },
+  {
+    id: "general",
+    name: "General",
+    description: "Track any game's scores.",
+    available: true,
+    accent: "#6b7280",
+    href: "/score-tracker/general",
   },
 ];
 
@@ -82,13 +106,13 @@ interface GameHubProps {
 export function GameHub({ onOpenProfile }: GameHubProps) {
   const { profile } = useUser();
   const playerName = profile.name;
-  const [activeTab, setActiveTab] = useState<"games" | "tools">("games");
+  const [activeTab, setActiveTab] = useState<"games" | "trackers">("games");
 
-  const items = activeTab === "games" ? games : tools;
-  const title = activeTab === "games" ? "Party Games" : "Tools";
+  const items = activeTab === "games" ? games : trackers;
+  const title = activeTab === "games" ? "Party Games" : "Trackers";
   const subtitle = activeTab === "games"
     ? "Choose a game to play with friends"
-    : "Utilities for your game nights";
+    : "Track scores for card games";
 
   return (
     <div className="screen game-hub">
@@ -149,11 +173,11 @@ export function GameHub({ onOpenProfile }: GameHubProps) {
           <span className="hub-tab-label">Games</span>
         </button>
         <button
-          className={`hub-tab ${activeTab === "tools" ? "active" : ""}`}
-          onClick={() => setActiveTab("tools")}
+          className={`hub-tab ${activeTab === "trackers" ? "active" : ""}`}
+          onClick={() => setActiveTab("trackers")}
         >
-          <span className="hub-tab-icon">🛠</span>
-          <span className="hub-tab-label">Tools</span>
+          <span className="hub-tab-icon">🃏</span>
+          <span className="hub-tab-label">Trackers</span>
         </button>
       </div>
     </div>
