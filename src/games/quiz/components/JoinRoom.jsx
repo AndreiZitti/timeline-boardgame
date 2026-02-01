@@ -5,11 +5,9 @@ export function JoinRoom({
   onJoinRoom,
   loading,
   error,
-  savedName,
   initialCode
 }) {
   const [code, setCode] = useState(initialCode || '')
-  const [name, setName] = useState(savedName || '')
 
   useEffect(() => {
     if (initialCode) {
@@ -19,8 +17,8 @@ export function JoinRoom({
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    if (code.trim() && name.trim()) {
-      onJoinRoom(code.trim().toUpperCase(), name.trim())
+    if (code.trim()) {
+      onJoinRoom(code.trim().toUpperCase())
     }
   }
 
@@ -38,7 +36,7 @@ export function JoinRoom({
       {error && <div className="quiz-error">{error}</div>}
 
       <form className="quiz-join__form" onSubmit={handleSubmit}>
-        <div className="quiz-setup__field">
+        <div className="quiz-join__field">
           <label className="quiz-label" htmlFor="room-code">
             Room Code
           </label>
@@ -50,24 +48,7 @@ export function JoinRoom({
             onChange={(e) => setCode(e.target.value.toUpperCase())}
             placeholder="ABC12"
             maxLength={6}
-            autoFocus={!initialCode}
-            required
-          />
-        </div>
-
-        <div className="quiz-setup__field">
-          <label className="quiz-label" htmlFor="player-name">
-            Your Name
-          </label>
-          <input
-            id="player-name"
-            type="text"
-            className="quiz-input"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Enter your name"
-            maxLength={20}
-            autoFocus={!!initialCode}
+            autoFocus
             required
           />
         </div>
@@ -76,7 +57,7 @@ export function JoinRoom({
           <button
             type="submit"
             className="quiz-btn quiz-btn--primary quiz-btn--large quiz-btn--full"
-            disabled={!code.trim() || !name.trim() || loading}
+            disabled={!code.trim() || loading}
           >
             {loading ? 'Joining...' : 'Join Game'}
           </button>
