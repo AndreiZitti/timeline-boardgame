@@ -50,11 +50,14 @@ export function ScoreTable({
   onReset,
   onBackToMenu,
   isViewOnly = false,
+  // Share functionality (for hosts)
+  shareUrl = null,
 }) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingRound, setEditingRound] = useState(null);
   const [whistModalRound, setWhistModalRound] = useState(null);
   const [rentzScoringRound, setRentzScoringRound] = useState(null);
+  const [showShareModal, setShowShareModal] = useState(false);
   const addRowRef = useRef(null);
   const whistTableRef = useRef(null);
   const whistRowRefs = useRef({});
@@ -206,11 +209,22 @@ export function ScoreTable({
             {config.name}
             {isViewOnly && <span className="live-badge">LIVE</span>}
           </span>
-          {!isViewOnly && (
-            <button className="btn-reset" onClick={onReset}>
-              Reset
-            </button>
-          )}
+          <div className="header-actions">
+            {!isViewOnly && shareUrl && (
+              <button
+                className="btn-share"
+                onClick={() => setShowShareModal(true)}
+                title="Share live view"
+              >
+                Share
+              </button>
+            )}
+            {!isViewOnly && (
+              <button className="btn-reset" onClick={onReset}>
+                Reset
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Whist progress and actions bar */}
@@ -348,6 +362,39 @@ export function ScoreTable({
             onRevert={handleWhistRevert}
             onClose={() => setWhistModalRound(null)}
           />
+        )}
+
+        {showShareModal && shareUrl && (
+          <div className="modal-overlay" onClick={() => setShowShareModal(false)}>
+            <div className="modal share-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h3>Share Live View</h3>
+                <button className="modal-close" onClick={() => setShowShareModal(false)}>
+                  &times;
+                </button>
+              </div>
+              <div className="modal-body">
+                <p>Others can watch the scores update in real-time:</p>
+                <div className="share-url-container">
+                  <input
+                    type="text"
+                    value={shareUrl}
+                    readOnly
+                    className="share-url-input"
+                    onClick={(e) => e.target.select()}
+                  />
+                  <button
+                    className="btn btn-copy"
+                    onClick={() => {
+                      navigator.clipboard.writeText(shareUrl);
+                    }}
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     );
