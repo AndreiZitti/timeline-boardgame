@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import './quiz.css'
 import { useQuizRoom } from './hooks/useQuizRoom'
 import { loadQuestionsCache, getCacheStatus } from './data/questions-db'
-import { Setup } from './components/Setup'
 import { JoinRoom } from './components/JoinRoom'
 import { Lobby } from './components/Lobby'
 import { Board } from './components/Board'
@@ -13,7 +12,6 @@ import { EndScreen } from './components/EndScreen'
 
 export function QuizGame({ onBack }) {
   const [screen, setScreen] = useState('home')
-  const [gameMode, setGameMode] = useState(null)
   const [pendingRoomCode, setPendingRoomCode] = useState(null)
   const [cacheLoading, setCacheLoading] = useState(true)
   const [cacheError, setCacheError] = useState(null)
@@ -32,13 +30,17 @@ export function QuizGame({ onBack }) {
     timeRemaining,
     sortedPlayers,
     remainingQuestions,
-    savedName,
     // Quick mode specific
     currentWager,
     wagerLocked,
     availableBoxes,
     playerWagers,
     roundNumber,
+    // New items from hook
+    allPlayersNamed,
+    setPlayerName,
+    setGameMode,
+    setCategory,
     // Actions
     createRoom,
     joinRoom,
@@ -79,7 +81,6 @@ export function QuizGame({ onBack }) {
           setPendingRoomCode(result.code)
           setScreen('join')
         } else {
-          setGameMode('quick') // game_mode column not in DB yet
           setScreen('game')
         }
       }
@@ -87,25 +88,18 @@ export function QuizGame({ onBack }) {
     attemptRejoin()
   }, [tryRejoin])
 
-  // Handle mode selection
-  const handleSelectMode = (mode) => {
-    setGameMode(mode)
-    setScreen('setup')
-  }
-
   // Handle room creation
-  const handleCreateRoom = async (name, theme) => {
-    const newRoom = await createRoom(name, gameMode, theme)
+  const handleCreateRoom = async () => {
+    const newRoom = await createRoom()
     if (newRoom) {
       setScreen('game')
     }
   }
 
   // Handle joining room
-  const handleJoinRoom = async (code, name) => {
-    const joinedRoom = await joinRoom(code, name)
+  const handleJoinRoom = async (code) => {
+    const joinedRoom = await joinRoom(code)
     if (joinedRoom) {
-      setGameMode('quick') // game_mode column not in DB yet
       setScreen('game')
     }
   }
@@ -113,7 +107,6 @@ export function QuizGame({ onBack }) {
   // Handle leaving
   const handleLeave = () => {
     leaveRoom()
-    setGameMode(null)
     setScreen('home')
   }
 
@@ -137,8 +130,8 @@ export function QuizGame({ onBack }) {
         <div className="quiz-error" style={{ marginTop: '2rem' }}>
           Failed to load questions: {cacheError}
         </div>
-        <button 
-          className="quiz-btn quiz-btn--primary" 
+        <button
+          className="quiz-btn quiz-btn--primary"
           style={{ marginTop: '1rem' }}
           onClick={() => window.location.reload()}
         >
@@ -148,15 +141,13 @@ export function QuizGame({ onBack }) {
     )
   }
 
-  // Home screen with mode selection
+  // Home screen with Create Room / Join Room buttons
   if (screen === 'home') {
     const status = getCacheStatus()
-    
+
     return (
       <div className="quiz-game quiz-home">
-        <button className="quiz-back" onClick={onBack}>
-          ← Back to Games
-        </button>
+        <button className="quiz-back" onClick={onBack}>← Back to Games</button>
 
         <div className="quiz-home__header">
           <h1 className="quiz-title">Quiz</h1>
@@ -168,63 +159,25 @@ export function QuizGame({ onBack }) {
           )}
         </div>
 
-        <div className="quiz-home__modes">
+        <div className="quiz-home__actions">
           <button
-            className="quiz-mode-card"
-            onClick={() => handleSelectMode('quick')}
+            className="quiz-btn quiz-btn--primary quiz-btn--large"
+            onClick={handleCreateRoom}
+            disabled={loading}
           >
-            <div className="quiz-mode-card__icon">⚡</div>
-            <div className="quiz-mode-card__content">
-              <h3 className="quiz-mode-card__title">Quick Game</h3>
-              <p className="quiz-mode-card__desc">5 rapid-fire questions, fast pace</p>
-            </div>
-            <span className="quiz-mode-card__arrow">→</span>
+            {loading ? 'Creating...' : 'Create Room'}
           </button>
 
-          {/* Classic Game - hidden for now
           <button
-            className="quiz-mode-card"
-            onClick={() => handleSelectMode('classic')}
-          >
-            <div className="quiz-mode-card__icon">📋</div>
-            <div className="quiz-mode-card__content">
-              <h3 className="quiz-mode-card__title">Classic Game</h3>
-              <p className="quiz-mode-card__desc">Full board, pick your questions</p>
-            </div>
-            <span className="quiz-mode-card__arrow">→</span>
-          </button>
-          */}
-
-          <button
-            className="quiz-mode-card"
+            className="quiz-btn quiz-btn--secondary quiz-btn--large"
             onClick={() => setScreen('join')}
           >
-            <div className="quiz-mode-card__icon">🚪</div>
-            <div className="quiz-mode-card__content">
-              <h3 className="quiz-mode-card__title">Join Room</h3>
-              <p className="quiz-mode-card__desc">Enter a room code to join</p>
-            </div>
-            <span className="quiz-mode-card__arrow">→</span>
+            Join Room
           </button>
         </div>
-      </div>
-    )
-  }
 
-  // Setup screen (create room)
-  if (screen === 'setup') {
-    return (
-      <Setup
-        gameMode={gameMode}
-        onBack={() => {
-          setGameMode(null)
-          setScreen('home')
-        }}
-        onCreateRoom={handleCreateRoom}
-        loading={loading}
-        error={error}
-        savedName={savedName}
-      />
+        {error && <div className="quiz-error">{error}</div>}
+      </div>
     )
   }
 
@@ -239,7 +192,6 @@ export function QuizGame({ onBack }) {
         onJoinRoom={handleJoinRoom}
         loading={loading}
         error={error}
-        savedName={savedName}
         initialCode={pendingRoomCode}
       />
     )
@@ -252,12 +204,17 @@ export function QuizGame({ onBack }) {
       return (
         <Lobby
           room={room}
-          gameMode={gameMode}
           isHost={isHost}
+          playerId={playerId}
+          currentPlayer={currentPlayer}
           onStartGame={startGame}
           onLeave={handleLeave}
           onAddBot={addBot}
           onRemoveBot={removeBot}
+          onSetPlayerName={setPlayerName}
+          onSetGameMode={setGameMode}
+          onSetCategory={setCategory}
+          allPlayersNamed={allPlayersNamed}
           error={error}
           loading={loading}
         />
@@ -292,6 +249,8 @@ export function QuizGame({ onBack }) {
           playerWagers={playerWagers}
           onSelectWager={selectWager}
           onLockWager={lockWager}
+          isHost={isHost}
+          onEndGame={endGameEarly}
         />
       )
     }
@@ -305,6 +264,8 @@ export function QuizGame({ onBack }) {
           timeRemaining={timeRemaining}
           hasAnswered={hasAnswered}
           onSubmitAnswer={submitAnswer}
+          isHost={isHost}
+          onEndGame={endGameEarly}
         />
       )
     }
