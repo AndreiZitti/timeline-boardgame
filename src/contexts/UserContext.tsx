@@ -257,13 +257,22 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(
     async (email: string, password: string): Promise<AuthResult> => {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
         return { success: false, error: error.message };
+      }
+
+      // Explicitly set user state from response data
+      // This ensures UI updates even if onAuthStateChange has timing issues
+      if (data.session?.user) {
+        setUser(data.session.user);
+        setPlayerId(data.session.user.id);
+        // Merge stats in background
+        mergeStatsOnSignIn(data.session.user.id).catch(console.error);
       }
 
       return { success: true };
