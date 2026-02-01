@@ -54,3 +54,17 @@ export function generateRoomCode() {
 
   return code
 }
+
+/**
+ * Generate a short 4-character room code (letters only, no confusing chars)
+ * Used for score tracker live view links
+ * @returns {string} - Room code like "ABCD"
+ */
+export function generateShortCode() {
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ' // No I, L, O (confusing)
+  let code = ''
+  for (let i = 0; i < 4; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  return code
+}
