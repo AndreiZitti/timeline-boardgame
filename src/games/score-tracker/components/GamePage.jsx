@@ -2,12 +2,22 @@
 
 import { useRouter } from "next/navigation";
 import { useScoreTracker } from "../hooks/useScoreTracker";
+import { useWhistRoom } from "../hooks/useWhistRoom";
 import { PlayerSetup } from "./PlayerSetup";
 import { ScoreTable } from "./ScoreTable";
 import "../score-tracker.css";
 
 export function GamePage({ gameType }) {
   const router = useRouter();
+
+  // Use the live-enabled hook for Whist, regular hook for others
+  const whistRoom = useWhistRoom();
+  const regularTracker = useScoreTracker(gameType !== 'whist' ? gameType : null);
+
+  // Select which tracker to use based on game type
+  const tracker = gameType === 'whist' ? whistRoom : regularTracker;
+
+  // Destructure from the selected tracker
   const {
     players,
     teams,
@@ -36,6 +46,7 @@ export function GamePage({ gameType }) {
     generalTotals,
     generalLeaderIndex,
     generalCanUndo,
+    // Actions
     startGame,
     startTeamGame,
     addRound,
@@ -55,7 +66,12 @@ export function GamePage({ gameType }) {
     GAME_CONFIG,
     RENTZ_MINI_GAMES,
     DEFAULT_RENTZ_CONFIG,
-  } = useScoreTracker(gameType);
+  } = tracker;
+
+  // Live view props (only available for Whist with useWhistRoom)
+  const { shareUrl, roomCode, isLiveEnabled } = gameType === 'whist'
+    ? whistRoom
+    : { shareUrl: null, roomCode: null, isLiveEnabled: false };
 
   const gameConfig = GAME_CONFIG[gameType];
 
@@ -138,6 +154,7 @@ export function GamePage({ gameType }) {
           onDeleteGeneralRound={deleteGeneralRound}
           onReset={handleReset}
           onBackToMenu={() => router.push("/score-tracker")}
+          shareUrl={shareUrl}
         />
       )}
     </div>
