@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useUser } from "@/contexts/UserContext";
 
 interface ProfileProps {
@@ -17,6 +17,7 @@ export function Profile({ isOpen, onClose }: ProfileProps) {
     signOut,
     profile,
     updateName,
+    getRecentActivity,
   } = useUser();
 
   const [name, setName] = useState(profile.name || "");
@@ -25,6 +26,24 @@ export function Profile({ isOpen, onClose }: ProfileProps) {
   const [password, setPassword] = useState("");
   const [authError, setAuthError] = useState("");
   const [isSigningIn, setIsSigningIn] = useState(false);
+
+  const [recentActivity, setRecentActivity] = useState<Array<{
+    id: string;
+    type: 'game' | 'tracker';
+    name: string;
+    playedAt: string;
+    playersCount?: number;
+    won?: boolean;
+    players?: string[];
+    scores?: number[];
+    winnerIndex?: number;
+  }>>([]);
+
+  useEffect(() => {
+    if (isOpen) {
+      getRecentActivity(5).then(setRecentActivity);
+    }
+  }, [isOpen, getRecentActivity]);
 
   if (!isOpen) return null;
 
@@ -63,6 +82,28 @@ export function Profile({ isOpen, onClose }: ProfileProps) {
 
   const handleSignOut = async () => {
     await signOut();
+  };
+
+  const formatActivityItem = (item: typeof recentActivity[0]) => {
+    const date = new Date(item.playedAt);
+    const isToday = date.toDateString() === new Date().toDateString();
+    const dateStr = isToday ? "Today" : date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+    if (item.type === "game") {
+      const parts = [item.name.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")];
+      if (item.playersCount) parts.push(`${item.playersCount} players`);
+      if (item.won === true) parts.push("won");
+      if (item.won === false) parts.push("lost");
+      return { text: parts.join(" - "), date: dateStr };
+    } else {
+      // Tracker: show condensed scores
+      const name = item.name.charAt(0).toUpperCase() + item.name.slice(1);
+      if (item.players && item.scores) {
+        const scoreStr = item.players.map((p, i) => `${p} ${item.scores![i]}`).join(", ");
+        return { text: `${name}: ${scoreStr}`, date: dateStr };
+      }
+      return { text: name, date: dateStr };
+    }
   };
 
   return (
@@ -114,14 +155,32 @@ export function Profile({ isOpen, onClose }: ProfileProps) {
           <div className="stats-grid">
             <div className="stat-item">
               <span className="stat-value">{profile.gamesPlayed || 0}</span>
-              <span className="stat-label">Games Played</span>
+              <span className="stat-label">Games</span>
             </div>
             <div className="stat-item">
               <span className="stat-value">{profile.gamesHosted || 0}</span>
-              <span className="stat-label">Games Hosted</span>
+              <span className="stat-label">Hosted</span>
             </div>
           </div>
         </div>
+
+        {recentActivity.length > 0 && (
+          <div className="profile-activity">
+            <h3>Recent Activity</h3>
+            <ul className="activity-list">
+              {recentActivity.map((item) => {
+                const formatted = formatActivityItem(item);
+                return (
+                  <li key={item.id} className="activity-item">
+                    <span className="activity-icon">{item.type === 'game' ? '🎮' : '🃏'}</span>
+                    <span className="activity-text">{formatted.text}</span>
+                    <span className="activity-date">{formatted.date}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
 
         {/* Auth Section */}
         <div className="auth-section">
