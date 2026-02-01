@@ -133,20 +133,31 @@ export function UserProvider({ children }: { children: ReactNode }) {
   // Initialize auth state and profile
   useEffect(() => {
     const initAuth = async () => {
-      // Get initial session
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      try {
+        // Get initial session with timeout
+        const timeoutPromise = new Promise<{ data: { session: null } }>((resolve) =>
+          setTimeout(() => resolve({ data: { session: null } }), 3000)
+        );
 
-      setUser(session?.user ?? null);
-      setPlayerId(session?.user?.id ?? getLocalPlayerId());
-      setName(getLocalName());
+        const sessionPromise = supabase.auth.getSession();
+        const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]);
 
-      if (session?.user) {
-        // Fetch stats from Supabase for authenticated user
-        await fetchSupabaseStats(session.user.id);
-      } else {
-        // Use localStorage stats for guest
+        setUser(session?.user ?? null);
+        setPlayerId(session?.user?.id ?? getLocalPlayerId());
+        setName(getLocalName());
+
+        if (session?.user) {
+          // Fetch stats from Supabase for authenticated user (non-blocking)
+          fetchSupabaseStats(session.user.id).catch(console.error);
+        } else {
+          // Use localStorage stats for guest
+          setStats(getLocalStats());
+        }
+      } catch (err) {
+        console.error("Auth init failed:", err);
+        // Fall back to guest mode
+        setPlayerId(getLocalPlayerId());
+        setName(getLocalName());
         setStats(getLocalStats());
       }
 
@@ -168,6 +179,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
       } else if (event === "SIGNED_OUT") {
         // Revert to localStorage stats
         setStats(getLocalStats());
+      } else if (event === "TOKEN_REFRESHED" && !session) {
+        // Token refresh failed - clear corrupted session
+        console.warn("Token refresh failed, clearing session");
+        supabase.auth.signOut().catch(console.error);
       }
     });
 
