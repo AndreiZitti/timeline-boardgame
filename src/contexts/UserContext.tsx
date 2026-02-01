@@ -29,6 +29,34 @@ interface AuthResult {
   error?: string;
 }
 
+interface GameResult {
+  gameType: string;
+  playersCount?: number;
+  won?: boolean;
+  wasHost?: boolean;
+}
+
+interface TrackerResult {
+  trackerType: string;
+  players: string[];
+  scores: number[];
+  winnerIndex?: number;
+}
+
+interface ActivityItem {
+  id: string;
+  type: 'game' | 'tracker';
+  name: string;       // game_type or tracker_type
+  playedAt: string;
+  // For games:
+  playersCount?: number;
+  won?: boolean;
+  // For trackers:
+  players?: string[];
+  scores?: number[];
+  winnerIndex?: number;
+}
+
 interface UserContextType {
   user: User | null;
   isAuthenticated: boolean;
@@ -39,6 +67,9 @@ interface UserContextType {
   updateName: (name: string) => void;
   incrementGamesPlayed: () => void;
   incrementGamesHosted: () => void;
+  recordGameResult: (result: GameResult) => Promise<void>;
+  recordTrackerResult: (result: TrackerResult) => Promise<void>;
+  getRecentActivity: (limit?: number) => Promise<ActivityItem[]>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -71,6 +102,23 @@ function setLocalStats(stats: GameStats) {
   if (typeof window === "undefined") return;
   localStorage.setItem("gamesPlayed", stats.gamesPlayed.toString());
   localStorage.setItem("gamesHosted", stats.gamesHosted.toString());
+}
+
+function getLocalActivity(): ActivityItem[] {
+  if (typeof window === "undefined") return [];
+  try {
+    return JSON.parse(localStorage.getItem("recentActivity") || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function addLocalActivity(item: ActivityItem) {
+  if (typeof window === "undefined") return;
+  const activity = getLocalActivity();
+  activity.unshift(item);
+  // Keep only last 50 items
+  localStorage.setItem("recentActivity", JSON.stringify(activity.slice(0, 50)));
 }
 
 export function UserProvider({ children }: { children: ReactNode }) {
@@ -247,6 +295,126 @@ export function UserProvider({ children }: { children: ReactNode }) {
     updateStats(newStats);
   }, [stats, updateStats]);
 
+  const recordGameResult = useCallback(
+    async (result: GameResult) => {
+      const activityItem: ActivityItem = {
+        id: crypto.randomUUID(),
+        type: 'game',
+        name: result.gameType,
+        playedAt: new Date().toISOString(),
+        playersCount: result.playersCount,
+        won: result.won,
+      };
+
+      // Always save locally
+      addLocalActivity(activityItem);
+
+      // Update aggregate stats
+      const newStats = { ...stats, gamesPlayed: stats.gamesPlayed + 1 };
+      if (result.wasHost) {
+        newStats.gamesHosted = stats.gamesHosted + 1;
+      }
+      await updateStats(newStats);
+
+      // If authenticated, also save to Supabase
+      if (user) {
+        await supabase.schema("games").from("game_results").insert({
+          user_id: user.id,
+          game_type: result.gameType,
+          players_count: result.playersCount,
+          won: result.won,
+          was_host: result.wasHost ?? false,
+        });
+      }
+    },
+    [user, supabase, stats, updateStats]
+  );
+
+  const recordTrackerResult = useCallback(
+    async (result: TrackerResult) => {
+      const activityItem: ActivityItem = {
+        id: crypto.randomUUID(),
+        type: 'tracker',
+        name: result.trackerType,
+        playedAt: new Date().toISOString(),
+        players: result.players,
+        scores: result.scores,
+        winnerIndex: result.winnerIndex,
+      };
+
+      // Always save locally
+      addLocalActivity(activityItem);
+
+      // Update aggregate stats (count as game played)
+      const newStats = { ...stats, gamesPlayed: stats.gamesPlayed + 1 };
+      await updateStats(newStats);
+
+      // If authenticated, also save to Supabase
+      if (user) {
+        await supabase.schema("games").from("tracker_results").insert({
+          user_id: user.id,
+          tracker_type: result.trackerType,
+          players: result.players,
+          scores: result.scores,
+          winner_index: result.winnerIndex,
+        });
+      }
+    },
+    [user, supabase, stats, updateStats]
+  );
+
+  const getRecentActivity = useCallback(
+    async (limit: number = 10): Promise<ActivityItem[]> => {
+      if (!user) {
+        // Return from localStorage for guests
+        return getLocalActivity().slice(0, limit);
+      }
+
+      // Fetch from both tables and merge
+      const [gameRes, trackerRes] = await Promise.all([
+        supabase
+          .schema("games")
+          .from("game_results")
+          .select("id, game_type, played_at, players_count, won")
+          .eq("user_id", user.id)
+          .order("played_at", { ascending: false })
+          .limit(limit),
+        supabase
+          .schema("games")
+          .from("tracker_results")
+          .select("id, tracker_type, played_at, players, scores, winner_index")
+          .eq("user_id", user.id)
+          .order("played_at", { ascending: false })
+          .limit(limit),
+      ]);
+
+      const gameItems: ActivityItem[] = (gameRes.data || []).map((r) => ({
+        id: r.id,
+        type: 'game' as const,
+        name: r.game_type,
+        playedAt: r.played_at,
+        playersCount: r.players_count,
+        won: r.won,
+      }));
+
+      const trackerItems: ActivityItem[] = (trackerRes.data || []).map((r) => ({
+        id: r.id,
+        type: 'tracker' as const,
+        name: r.tracker_type,
+        playedAt: r.played_at,
+        players: r.players,
+        scores: r.scores,
+        winnerIndex: r.winner_index,
+      }));
+
+      // Merge and sort by date
+      return [...gameItems, ...trackerItems]
+        .sort((a, b) => new Date(b.playedAt).getTime() - new Date(a.playedAt).getTime())
+        .slice(0, limit);
+    },
+    [user, supabase]
+  );
+
   const profile: Profile = {
     id: playerId,
     name,
@@ -266,6 +434,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
         updateName,
         incrementGamesPlayed,
         incrementGamesHosted,
+        recordGameResult,
+        recordTrackerResult,
+        getRecentActivity,
       }}
     >
       {children}
