@@ -82,3 +82,31 @@ export async function reportQuestion(questionId) {
     // Silently fail - reporting is not critical
   }
 }
+
+/**
+ * Like a question
+ */
+export async function likeQuestion(questionId) {
+  try {
+    const { error } = await supabaseGames.rpc('like_question', {
+      p_question_id: questionId
+    })
+    if (error) console.error('Failed to like question:', error)
+  } catch (err) {
+    // Silently fail - voting is not critical
+  }
+}
+
+/**
+ * Dislike a question
+ */
+export async function dislikeQuestion(questionId) {
+  try {
+    const { error } = await supabaseGames.rpc('dislike_question', {
+      p_question_id: questionId
+    })
+    if (error) console.error('Failed to dislike question:', error)
+  } catch (err) {
+    // Silently fail - voting is not critical
+  }
+}

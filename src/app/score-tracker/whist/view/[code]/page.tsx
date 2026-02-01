@@ -173,6 +173,21 @@ export default function WhistViewerPage() {
         whistTotals={whistTotals}
         whistActiveRoundIndex={whistActiveRoundIndex}
         whistIsComplete={whistIsComplete}
+        // Rentz props (not used for Whist viewer)
+        rentzData={[]}
+        rentzConfig={{}}
+        rentzTotals={[]}
+        rentzActiveRoundIndex={-1}
+        rentzIsComplete={false}
+        rentzCurrentDealerIndex={-1}
+        rentzDealerGames={[]}
+        rentzMiniGames={{}}
+        // General props (not used for Whist viewer)
+        generalData={[]}
+        generalCurrentPlayer={0}
+        generalTotals={[]}
+        generalLeaderIndex={-1}
+        generalCanUndo={false}
         // View-only mode
         isViewOnly={true}
         // Unused callbacks (view-only)
@@ -182,6 +197,13 @@ export default function WhistViewerPage() {
         onUpdateWhistBids={() => {}}
         onUpdateWhistTricks={() => {}}
         onRevertWhistToBidding={() => {}}
+        onSelectRentzMiniGame={() => {}}
+        onUpdateRentzScores={() => {}}
+        onRevertRentzToSelecting={() => {}}
+        onAddGeneralScore={() => {}}
+        onUndoGeneralScore={() => {}}
+        onEditGeneralScore={() => {}}
+        onDeleteGeneralRound={() => {}}
         onReset={() => {}}
         onBackToMenu={() => {}}
       />

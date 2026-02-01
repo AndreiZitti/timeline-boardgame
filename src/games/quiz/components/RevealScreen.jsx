@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { likeQuestion, dislikeQuestion } from '../data/questions-db'
 
 export function RevealScreen({
   room,
@@ -7,6 +8,19 @@ export function RevealScreen({
   onContinue
 }) {
   const hasCalledContinue = useRef(false)
+  const [voted, setVoted] = useState(null) // 'like' | 'dislike' | null
+
+  const handleLike = () => {
+    if (voted) return
+    setVoted('like')
+    likeQuestion(currentQuestion.id)
+  }
+
+  const handleDislike = () => {
+    if (voted) return
+    setVoted('dislike')
+    dislikeQuestion(currentQuestion.id)
+  }
 
   // Auto-continue after 3 seconds
   useEffect(() => {
@@ -22,9 +36,10 @@ export function RevealScreen({
     return () => clearTimeout(timer)
   }, [onContinue])
 
-  // Reset ref when question changes
+  // Reset ref and vote state when question changes
   useEffect(() => {
     hasCalledContinue.current = false
+    setVoted(null)
   }, [currentQuestion?.index])
 
   const submissions = room.current_question?.submissions || []
@@ -58,6 +73,24 @@ export function RevealScreen({
         <p className="quiz-reveal__answer">
           <span>✓</span> {currentQuestion.answer}
         </p>
+        <div className="quiz-reveal__vote">
+          <button
+            className={`quiz-vote-btn quiz-vote-btn--like ${voted === 'like' ? 'quiz-vote-btn--active' : ''}`}
+            onClick={handleLike}
+            disabled={voted !== null}
+            aria-label="Like this question"
+          >
+            👍
+          </button>
+          <button
+            className={`quiz-vote-btn quiz-vote-btn--dislike ${voted === 'dislike' ? 'quiz-vote-btn--active' : ''}`}
+            onClick={handleDislike}
+            disabled={voted !== null}
+            aria-label="Dislike this question"
+          >
+            👎
+          </button>
+        </div>
       </div>
 
       {/* Question (dimmed) */}
