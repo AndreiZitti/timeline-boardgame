@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase, supabaseGames } from '@/lib/supabase/client'
 import { generateRoomCode } from '@/lib/random'
 import { useUser } from '@/contexts/UserContext'
-import { getRandomQuestions, buildBoard, CATEGORIES } from '../data/hardcoded-questions'
+import { getRandomQuestions, buildBoard } from '../data/hardcoded-questions'
 
 // Simple answer matching - checks if user answer is in acceptable_answers array
 function checkAnswer(userAnswer, acceptableAnswers) {
@@ -112,16 +112,6 @@ export function useQuizRoom() {
   const quickCurrentQuestion = room?.game_mode === 'quick' && room?.current_question
     ? room.questions?.[room.current_question.index]
     : null
-
-  // Debug quick mode question loading
-  if (room?.phase === 'answering' && room?.game_mode === 'quick') {
-    console.log('Quick mode answering:', {
-      hasQuestions: !!room.questions,
-      questionsLength: room.questions?.length,
-      currentQuestionIndex: room.current_question?.index,
-      derivedQuestion: quickCurrentQuestion
-    })
-  }
 
   // Effective current question (works for both modes)
   const effectiveCurrentQuestion = room?.game_mode === 'quick'
@@ -1010,6 +1000,7 @@ export function useQuizRoom() {
       ? availableNames[Math.floor(Math.random() * availableNames.length)]
       : `Bot ${room.players.length + 1}`
 
+    const isQuickMode = room.game_mode === 'quick'
     const botPlayer = {
       id: generateBotId(),
       name: botName,
@@ -1018,7 +1009,12 @@ export function useQuizRoom() {
       isBot: true,
       correctCount: 0,
       totalTime: 0,
-      answerCount: 0
+      answerCount: 0,
+      ...(isQuickMode && {
+        availableBoxes: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+        currentWager: null,
+        wagerLocked: false
+      })
     }
 
     const { error: updateError } = await supabaseGames
