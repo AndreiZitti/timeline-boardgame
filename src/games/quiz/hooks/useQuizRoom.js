@@ -2,8 +2,13 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase, supabaseGames } from '@/lib/supabase/client'
 import { generateRoomCode } from '@/lib/random'
 import { useUser } from '@/contexts/UserContext'
-import { isAnswerCorrect, calculatePoints } from '../utils/matching'
-import { buildBoardFromCache, buildQuickModeQuestions } from '../data/questions-db'
+import { getRandomQuestions, buildBoard, CATEGORIES } from '../data/hardcoded-questions'
+
+// Simple answer matching - checks if user answer is in acceptable_answers array
+function checkAnswer(userAnswer, acceptableAnswers) {
+  const normalized = userAnswer.toLowerCase().trim()
+  return acceptableAnswers.some(a => a.toLowerCase().trim() === normalized)
+}
 
 // LocalStorage key
 const STORAGE_KEY = 'quizRoomCode'
@@ -108,6 +113,16 @@ export function useQuizRoom() {
     ? room.questions?.[room.current_question.index]
     : null
 
+  // Debug quick mode question loading
+  if (room?.phase === 'answering' && room?.game_mode === 'quick') {
+    console.log('Quick mode answering:', {
+      hasQuestions: !!room.questions,
+      questionsLength: room.questions?.length,
+      currentQuestionIndex: room.current_question?.index,
+      derivedQuestion: quickCurrentQuestion
+    })
+  }
+
   // Effective current question (works for both modes)
   const effectiveCurrentQuestion = room?.game_mode === 'quick'
     ? quickCurrentQuestion
@@ -122,6 +137,7 @@ export function useQuizRoom() {
   const playerWagers = room?.players?.map(p => ({
     id: p.id,
     name: p.name,
+    score: p.score || 0,
     wager: p.currentWager,
     locked: p.wagerLocked
   })) ?? []
@@ -152,6 +168,21 @@ export function useQuizRoom() {
     return () => clearInterval(interval)
   }, [room?.phase, room?.current_question?.started_at, isHost])
 
+  // End round early when all players have answered
+  useEffect(() => {
+    if (room?.phase !== 'answering' || !isHost) return
+    if (!room?.players || room.players.length === 0) return
+
+    const allAnswered = room.players.every(p => p.hasAnswered)
+    if (allAnswered) {
+      // Small delay to allow UI to show "all answered" state before revealing
+      const timeout = setTimeout(() => {
+        revealAnswers()
+      }, 500)
+      return () => clearTimeout(timeout)
+    }
+  }, [room?.phase, room?.players, isHost])
+
   // Subscribe to room updates
   useEffect(() => {
     if (!room?.code) return
@@ -171,7 +202,13 @@ export function useQuizRoom() {
             if (payload.old?.phase !== 'ended' && payload.new.phase === 'ended') {
               incrementGamesPlayed()
             }
-            setRoom(payload.new)
+            // Preserve questions/board from current state if not in payload
+            // (Supabase realtime may not send large JSONB fields)
+            setRoom(prev => ({
+              ...payload.new,
+              questions: payload.new.questions || prev?.questions || [],
+              board: payload.new.board || prev?.board || []
+            }))
           }
         }
       )
@@ -280,62 +317,42 @@ export function useQuizRoom() {
     }
   }, [playerId])
 
-  // Create a new room with game mode and theme
-  const createRoom = useCallback(async (hostName, gameMode, theme) => {
+  // Create a new room with default settings
+  // Room starts with unnamed host, default game_mode='quick', default theme={id:'mixed',name:'Mixed'}
+  // Questions/board are built at startGame() time, not create time
+  const createRoom = useCallback(async () => {
     setLoading(true)
     setError(null)
 
     try {
-      const categoryIds = theme?.categories || null
-      let board = []
-      let questions = []
-
-      if (gameMode === 'quick') {
-        // Quick mode: 10 questions
-        const result = buildQuickModeQuestions({ categoryIds })
-        questions = result.questions
-        if (!questions || questions.length === 0) {
-          throw new Error('Failed to load questions. Please try again.')
-        }
-      } else {
-        // Classic mode: 30-question board
-        const result = buildBoardFromCache({ categoryIds })
-        board = result.board
-        if (!board || board.length === 0) {
-          throw new Error('Failed to load questions. Please try again.')
-        }
-      }
-
       const code = generateRoomCode()
       const sessionToken = generateSessionToken()
 
       const newRoom = {
         code,
         phase: 'lobby',
-        game_mode: gameMode,
-        theme: { id: theme?.id || 'mixed', name: theme?.name || 'Mixed' },
+        game_mode: 'quick',
+        theme: { id: 'mixed', name: 'Mixed' },
         players: [{
           id: playerId,
-          name: hostName,
+          name: '', // Start with empty name - user sets it in lobby
           sessionToken,
           score: 0,
           hasAnswered: false,
           correctCount: 0,
           totalTime: 0,
           answerCount: 0,
-          // Quick mode specific
-          ...(gameMode === 'quick' && {
-            availableBoxes: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-            currentWager: null,
-            wagerLocked: false
-          })
+          // Quick mode specific (default mode)
+          availableBoxes: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+          currentWager: null,
+          wagerLocked: false
         }],
         host_id: playerId,
         picker_id: playerId,
-        // Classic uses board, Quick uses questions
-        board: gameMode === 'classic' ? board : [],
-        questions: gameMode === 'quick' ? questions : [],
-        round_number: gameMode === 'quick' ? 0 : null,
+        // Questions/board built at startGame() time
+        board: [],
+        questions: [],
+        round_number: 0,
         current_question: null
       }
 
@@ -347,7 +364,6 @@ export function useQuizRoom() {
 
       if (supabaseError) throw supabaseError
 
-      updateName(hostName)
       saveRoomCode(data.code)
       updateURLWithRoomCode(data.code)
       updateURLWithSessionToken(sessionToken)
@@ -360,10 +376,10 @@ export function useQuizRoom() {
     } finally {
       setLoading(false)
     }
-  }, [playerId, updateName])
+  }, [playerId])
 
-  // Join room
-  const joinRoom = useCallback(async (code, playerName) => {
+  // Join room - player name set in lobby via setPlayerName()
+  const joinRoom = useCallback(async (code) => {
     setLoading(true)
     setError(null)
 
@@ -379,7 +395,6 @@ export function useQuizRoom() {
 
       const existingPlayer = existingRoom.players.find(p => p.id === playerId)
       if (existingPlayer) {
-        updateName(playerName)
         saveRoomCode(existingRoom.code)
         updateURLWithRoomCode(existingRoom.code)
         setRoom(existingRoom)
@@ -388,11 +403,13 @@ export function useQuizRoom() {
 
       const sessionToken = generateSessionToken()
       const isQuickMode = existingRoom.game_mode === 'quick'
+      // Use saved profile name if available, otherwise empty string (set in lobby)
+      const initialName = profile.name || ''
       const updatedPlayers = [
         ...existingRoom.players,
         {
           id: playerId,
-          name: playerName,
+          name: initialName,
           sessionToken,
           score: 0,
           hasAnswered: false,
@@ -417,7 +434,6 @@ export function useQuizRoom() {
 
       if (updateError) throw updateError
 
-      updateName(playerName)
       saveRoomCode(data.code)
       updateURLWithRoomCode(data.code)
       const myPlayer = data.players.find(p => p.id === playerId)
@@ -433,28 +449,151 @@ export function useQuizRoom() {
     } finally {
       setLoading(false)
     }
-  }, [playerId, updateName])
+  }, [playerId, profile.name])
+
+  // Set player name in lobby
+  const setPlayerName = useCallback(async (name) => {
+    if (!room) return
+    const trimmedName = name.trim()
+    if (!trimmedName) return
+
+    // Update player's name in room.players array
+    const updatedPlayers = room.players.map(p =>
+      p.id === playerId ? { ...p, name: trimmedName } : p
+    )
+
+    const { error: updateError } = await supabaseGames
+      .from('quiz_rooms')
+      .update({ players: updatedPlayers })
+      .eq('code', room.code)
+
+    if (updateError) {
+      setError(updateError.message)
+    } else {
+      // Also save to localStorage via UserContext
+      updateName(trimmedName)
+    }
+  }, [room, playerId, updateName])
+
+  // Set game mode (host only, lobby phase only)
+  const setGameMode = useCallback(async (mode) => {
+    if (!room || !isHost || room.phase !== 'lobby') return
+    if (mode !== 'quick' && mode !== 'classic') return
+
+    // When switching modes, update player fields accordingly
+    const updatedPlayers = room.players.map(p => {
+      if (mode === 'quick') {
+        // Add quick mode fields
+        return {
+          ...p,
+          availableBoxes: p.availableBoxes || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+          currentWager: p.currentWager ?? null,
+          wagerLocked: p.wagerLocked ?? false
+        }
+      } else {
+        // Remove quick mode fields for classic mode
+        const { availableBoxes, currentWager, wagerLocked, ...rest } = p
+        return rest
+      }
+    })
+
+    const { error: updateError } = await supabaseGames
+      .from('quiz_rooms')
+      .update({
+        game_mode: mode,
+        players: updatedPlayers,
+        round_number: mode === 'quick' ? 0 : null
+      })
+      .eq('code', room.code)
+
+    if (updateError) setError(updateError.message)
+  }, [room, isHost])
+
+  // Set category/theme (host only, lobby phase only)
+  const setCategory = useCallback(async (category) => {
+    if (!room || !isHost || room.phase !== 'lobby') return
+    if (!category || !category.id || !category.name) return
+
+    const { error: updateError } = await supabaseGames
+      .from('quiz_rooms')
+      .update({ theme: { id: category.id, name: category.name } })
+      .eq('code', room.code)
+
+    if (updateError) setError(updateError.message)
+  }, [room, isHost])
 
   // Start game
   const startGame = useCallback(async () => {
     if (!room || !isHost || room.phase !== 'lobby') return
+
+    // Validate all players have names
+    if (room.players.some(p => !p.name?.trim())) {
+      setError('All players must enter their name before starting')
+      return
+    }
 
     if (room.players.length < 2) {
       setError('Need at least 2 players to start')
       return
     }
 
-    const isQuickMode = room.game_mode === 'quick'
+    // Fetch fresh room data to ensure we have latest state
+    const { data: freshRoom, error: fetchError } = await supabaseGames
+      .from('quiz_rooms')
+      .select()
+      .eq('code', room.code)
+      .single()
+
+    if (fetchError || !freshRoom) {
+      setError('Failed to load room data')
+      return
+    }
+
+    // Re-validate names on fresh data
+    if (freshRoom.players.some(p => !p.name?.trim())) {
+      setError('All players must enter their name before starting')
+      return
+    }
+
+    const isQuickMode = freshRoom.game_mode === 'quick'
+
+    // Build questions/board at start time (not create time)
+    let board = []
+    let questions = []
+
+    try {
+      if (isQuickMode) {
+        // Quick mode: 10 random open-ended questions
+        questions = getRandomQuestions(10)
+        if (!questions || questions.length === 0) {
+          setError('Failed to load questions. Please try again.')
+          return
+        }
+      } else {
+        // Classic mode: 5x5 board (25 questions)
+        const result = buildBoard()
+        board = result.board
+        if (!board || board.length === 0) {
+          setError('Failed to load questions. Please try again.')
+          return
+        }
+      }
+    } catch (err) {
+      setError('Failed to load questions. Please try again.')
+      return
+    }
 
     if (isQuickMode) {
       // Quick mode: start round 1 wagering
-      const question = room.questions[0]
+      const question = questions[0]
 
-      const updatedPlayers = room.players.map(p => ({
+      const updatedPlayers = freshRoom.players.map(p => ({
         ...p,
         currentWager: null,
         wagerLocked: false,
-        hasAnswered: false
+        hasAnswered: false,
+        // Ensure quick mode fields are present
+        availableBoxes: p.availableBoxes || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
       }))
 
       const { error: updateError } = await supabaseGames
@@ -463,6 +602,8 @@ export function useQuizRoom() {
           phase: 'wagering',
           round_number: 1,
           players: updatedPlayers,
+          questions: questions,
+          board: [],
           current_question: {
             index: 0,
             category: question.category,
@@ -470,7 +611,7 @@ export function useQuizRoom() {
             submissions: []
           }
         })
-        .eq('code', room.code)
+        .eq('code', freshRoom.code)
 
       if (!updateError) {
         incrementGamesHosted()
@@ -481,8 +622,12 @@ export function useQuizRoom() {
       // Classic mode: go to picking phase
       const { error: updateError } = await supabaseGames
         .from('quiz_rooms')
-        .update({ phase: 'picking' })
-        .eq('code', room.code)
+        .update({
+          phase: 'picking',
+          board: board,
+          questions: []
+        })
+        .eq('code', freshRoom.code)
 
       if (!updateError) {
         incrementGamesHosted()
@@ -617,12 +762,9 @@ export function useQuizRoom() {
     const submissions = room.current_question.submissions || []
 
     const evaluatedSubmissions = submissions.map(s => {
-      let isCorrect
-      if (question.type === 'multiple' || question.type === 'boolean') {
-        isCorrect = s.answer.toLowerCase().trim() === question.answer.toLowerCase().trim()
-      } else {
-        isCorrect = isAnswerCorrect(s.answer, question.answer, question.alternates)
-      }
+      // All questions now use acceptable_answers array
+      const acceptableAnswers = question.acceptable_answers || [question.answer]
+      const isCorrect = checkAnswer(s.answer, acceptableAnswers)
 
       const startTime = new Date(room.current_question.started_at).getTime()
       const submitTime = new Date(s.submitted_at).getTime()
@@ -635,12 +777,20 @@ export function useQuizRoom() {
     let updatedBoard = room.board
     let nextPickerId = room.picker_id
 
+    let quickModePointsAwarded = []
+
     if (isQuickMode) {
       // Quick mode: score based on wager, remove used box
       updatedPlayers = room.players.map(p => {
         const submission = evaluatedSubmissions.find(s => s.player_id === p.id)
         const wager = p.currentWager || 0
         const pointsEarned = submission?.correct ? wager : 0
+
+        // Track points for display
+        quickModePointsAwarded.push({
+          player_id: p.id,
+          points: pointsEarned
+        })
 
         return {
           ...p,
@@ -653,32 +803,45 @@ export function useQuizRoom() {
         }
       })
     } else {
-      // Classic mode: existing point calculation
-      const pointsAwarded = calculatePoints(evaluatedSubmissions, question.value)
+      // Classic mode: first correct answer gets full points, others get half
+      const correctSubmissions = evaluatedSubmissions
+        .filter(s => s.correct)
+        .sort((a, b) => a.responseTime - b.responseTime)
+
+      const classicPointsAwarded = []
 
       updatedPlayers = room.players.map(p => {
-        const awarded = pointsAwarded.find(pa => pa.player_id === p.id)
         const submission = evaluatedSubmissions.find(s => s.player_id === p.id)
+        if (!submission) return p
 
-        if (awarded && submission) {
-          return {
-            ...p,
-            score: p.score + awarded.points,
-            correctCount: submission.correct ? (p.correctCount || 0) + 1 : (p.correctCount || 0),
-            totalTime: (p.totalTime || 0) + (submission.responseTime || 0),
-            answerCount: (p.answerCount || 0) + 1
-          }
+        let pointsEarned = 0
+        if (submission.correct) {
+          const rank = correctSubmissions.findIndex(s => s.player_id === p.id)
+          // First correct gets full points, others get half
+          pointsEarned = rank === 0 ? question.value : Math.floor(question.value / 2)
         }
-        return p
+
+        classicPointsAwarded.push({ player_id: p.id, points: pointsEarned })
+
+        return {
+          ...p,
+          score: p.score + pointsEarned,
+          correctCount: submission.correct ? (p.correctCount || 0) + 1 : (p.correctCount || 0),
+          totalTime: (p.totalTime || 0) + (submission.responseTime || 0),
+          answerCount: (p.answerCount || 0) + 1
+        }
       })
 
       updatedBoard = room.board.map((q, i) =>
         i === room.current_question.index ? { ...q, used: true } : q
       )
 
-      if (pointsAwarded.length > 0) {
-        nextPickerId = pointsAwarded[0].player_id
+      // Fastest correct answer becomes next picker
+      if (correctSubmissions.length > 0) {
+        nextPickerId = correctSubmissions[0].player_id
       }
+
+      quickModePointsAwarded = classicPointsAwarded // Reuse for display
     }
 
     const { error: updateError } = await supabaseGames
@@ -691,7 +854,7 @@ export function useQuizRoom() {
         current_question: {
           ...room.current_question,
           submissions: evaluatedSubmissions,
-          points_awarded: isQuickMode ? null : calculatePoints(evaluatedSubmissions, question.value)
+          points_awarded: quickModePointsAwarded
         }
       })
       .eq('code', room.code)
@@ -779,11 +942,18 @@ export function useQuizRoom() {
 
     setLoading(true)
     try {
-      // Build fresh board from cache (instant!)
-      const categoryIds = room.theme?.id !== 'mixed'
-        ? room.board.slice(0, 6).map(q => q.category_id).filter(Boolean)
-        : null
-      const { board } = buildBoardFromCache({ categoryIds })
+      const isQuickMode = room.game_mode === 'quick'
+
+      // Build fresh questions/board
+      let board = []
+      let questions = []
+
+      if (isQuickMode) {
+        questions = getRandomQuestions(10)
+      } else {
+        const result = buildBoard()
+        board = result.board
+      }
 
       const resetPlayers = room.players.map(p => ({
         ...p,
@@ -791,7 +961,13 @@ export function useQuizRoom() {
         hasAnswered: false,
         correctCount: 0,
         totalTime: 0,
-        answerCount: 0
+        answerCount: 0,
+        // Reset quick mode fields
+        ...(isQuickMode && {
+          availableBoxes: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+          currentWager: null,
+          wagerLocked: false
+        })
       }))
 
       const { error: updateError } = await supabaseGames
@@ -799,7 +975,9 @@ export function useQuizRoom() {
         .update({
           phase: 'lobby',
           players: resetPlayers,
-          board,
+          board: isQuickMode ? [] : board,
+          questions: isQuickMode ? questions : [],
+          round_number: isQuickMode ? 0 : null,
           picker_id: room.host_id,
           current_question: null
         })
@@ -863,122 +1041,104 @@ export function useQuizRoom() {
     if (updateError) setError(updateError.message)
   }, [room, isHost])
 
-  // Bot behavior
+  // Simple bot behavior for testing
   useEffect(() => {
     if (!room || !isHost) return
 
     const bots = room.players.filter(p => p.isBot)
     if (bots.length === 0) return
 
-    // Bot picks
-    if (room.phase === 'picking') {
-      const pickerBot = bots.find(b => b.id === room.picker_id)
-      if (pickerBot) {
-        const delay = 1000 + Math.random() * 2000
-        const timeout = setTimeout(async () => {
-          const available = room.board
-            .map((q, i) => ({ ...q, index: i }))
-            .filter(q => !q.used)
-          if (available.length > 0) {
-            const pick = available[Math.floor(Math.random() * available.length)]
-            const updatedPlayers = room.players.map(p => ({ ...p, hasAnswered: false }))
-            await supabaseGames
-              .from('quiz_rooms')
-              .update({
-                phase: 'answering',
-                players: updatedPlayers,
-                current_question: {
-                  index: pick.index,
-                  started_at: new Date().toISOString(),
-                  submissions: []
-                }
-              })
-              .eq('code', room.code)
+    // Bot wagers (quick mode)
+    if (room.phase === 'wagering' && room.game_mode === 'quick') {
+      const unlockedBots = bots.filter(b => !b.wagerLocked)
+      if (unlockedBots.length === 0) return
+
+      const timeout = setTimeout(async () => {
+        // All bots wager at once
+        const updatedPlayers = room.players.map(p => {
+          if (!p.isBot || p.wagerLocked) return p
+          const boxes = p.availableBoxes || []
+          if (boxes.length === 0) return p
+          const wager = boxes[Math.floor(Math.random() * boxes.length)]
+          return { ...p, currentWager: wager, wagerLocked: true }
+        })
+
+        const allLocked = updatedPlayers.every(p => p.wagerLocked)
+        const updates = { players: updatedPlayers }
+
+        if (allLocked) {
+          updates.phase = 'answering'
+          updates.current_question = {
+            ...room.current_question,
+            started_at: new Date().toISOString()
           }
-        }, delay)
-        return () => clearTimeout(timeout)
-      }
+        }
+
+        await supabaseGames
+          .from('quiz_rooms')
+          .update(updates)
+          .eq('code', room.code)
+      }, 1000)
+      return () => clearTimeout(timeout)
     }
 
     // Bot answers
     if (room.phase === 'answering' && room.current_question) {
-      const question = room.board[room.current_question.index]
-      const unanswered = bots.filter(b => !b.hasAnswered)
+      const unansweredBots = bots.filter(b => !b.hasAnswered)
+      if (unansweredBots.length === 0) return
 
-      if (unanswered.length > 0) {
-        const timeouts = unanswered.map(bot => {
-          const delay = 2000 + Math.random() * 8000
-          return setTimeout(async () => {
-            const isCorrect = Math.random() < 0.7
-            let answer
-            if (question.type === 'multiple' || question.type === 'boolean') {
-              if (isCorrect) {
-                answer = question.answer
-              } else {
-                const wrong = question.options.filter(o => o !== question.answer)
-                answer = wrong[Math.floor(Math.random() * wrong.length)] || question.answer
-              }
-            } else {
-              answer = isCorrect ? question.answer : 'Wrong'
-            }
+      const isQuickMode = room.game_mode === 'quick'
+      const question = isQuickMode
+        ? room.questions?.[room.current_question.index]
+        : room.board?.[room.current_question.index]
 
-            const { data: fresh } = await supabaseGames
-              .from('quiz_rooms')
-              .select()
-              .eq('code', room.code)
-              .single()
+      if (!question) return
 
-            if (fresh?.phase !== 'answering') return
+      const timeout = setTimeout(async () => {
+        const subs = room.current_question?.submissions || []
+        const newSubs = []
 
-            const subs = fresh.current_question?.submissions || []
-            if (subs.some(s => s.player_id === bot.id)) return
+        const updatedPlayers = room.players.map(p => {
+          if (!p.isBot || p.hasAnswered) return p
 
-            const submission = {
-              player_id: bot.id,
-              answer,
-              submitted_at: new Date().toISOString(),
-              correct: null
-            }
+          // Pick answer based on question type
+          let answer
+          const isCorrect = Math.random() < 0.7
 
-            const updatedPlayers = fresh.players.map(p =>
-              p.id === bot.id ? { ...p, hasAnswered: true } : p
-            )
+          if (question.type === 'open') {
+            // Open-ended: pick from acceptable_answers or use answer
+            const correctAnswers = question.acceptable_answers || [question.answer]
+            answer = isCorrect
+              ? correctAnswers[Math.floor(Math.random() * correctAnswers.length)]
+              : 'Wrong answer'
+          } else {
+            // Multiple choice
+            answer = isCorrect ? question.answer : (question.options?.[0] || 'Wrong')
+          }
 
-            await supabaseGames
-              .from('quiz_rooms')
-              .update({
-                players: updatedPlayers,
-                current_question: {
-                  ...fresh.current_question,
-                  submissions: [...subs, submission]
-                }
-              })
-              .eq('code', room.code)
-          }, delay)
+          newSubs.push({
+            player_id: p.id,
+            answer,
+            submitted_at: new Date().toISOString(),
+            correct: null
+          })
+          return { ...p, hasAnswered: true }
         })
-        return () => timeouts.forEach(t => clearTimeout(t))
-      }
-    }
 
-    // Bot continues
-    if (room.phase === 'reveal') {
-      const pickerBot = bots.find(b => b.id === room.picker_id)
-      if (pickerBot) {
-        const delay = 3000 + Math.random() * 2000
-        const timeout = setTimeout(async () => {
-          const remaining = room.board.filter(q => !q.used).length
-          await supabaseGames
-            .from('quiz_rooms')
-            .update({
-              phase: remaining === 0 ? 'ended' : 'picking',
-              current_question: null
-            })
-            .eq('code', room.code)
-        }, delay)
-        return () => clearTimeout(timeout)
-      }
+        await supabaseGames
+          .from('quiz_rooms')
+          .update({
+            players: updatedPlayers,
+            current_question: {
+              ...room.current_question,
+              submissions: [...subs, ...newSubs]
+            }
+          })
+          .eq('code', room.code)
+      }, 2000)
+      return () => clearTimeout(timeout)
     }
-  }, [room?.phase, room?.picker_id, room?.current_question?.index, room?.code, isHost])
+  }, [room?.phase, room?.current_question?.index, room?.code, isHost])
 
   const sortedPlayers = room?.players
     ? [...room.players].sort((a, b) => b.score - a.score)
@@ -987,6 +1147,9 @@ export function useQuizRoom() {
   const remainingQuestions = room?.board
     ? room.board.filter(q => !q.used).length
     : 0
+
+  // Check if all players have non-empty names
+  const allPlayersNamed = room?.players?.every(p => p.name && p.name.trim()) ?? false
 
   return {
     room,
@@ -1003,6 +1166,7 @@ export function useQuizRoom() {
     sortedPlayers,
     remainingQuestions,
     savedName: profile.name,
+    allPlayersNamed,
     // Quick mode specific
     currentWager,
     wagerLocked,
@@ -1015,6 +1179,9 @@ export function useQuizRoom() {
     tryRejoin,
     leaveRoom,
     startGame,
+    setPlayerName,
+    setGameMode,
+    setCategory,
     selectWager,
     lockWager,
     addBot,
