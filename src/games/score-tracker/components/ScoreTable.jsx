@@ -54,7 +54,7 @@ export function ScoreTable({
   // Share functionality (for hosts)
   shareUrl = null,
 }) {
-  const { recordTrackerResult, isAuthenticated } = useUser();
+  const { recordTrackerResult } = useUser();
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingRound, setEditingRound] = useState(null);
   const [whistModalRound, setWhistModalRound] = useState(null);
@@ -901,15 +901,13 @@ export function ScoreTable({
               <button className="btn btn-secondary" onClick={handleContinueGame}>
                 Continue Playing
               </button>
-              {isAuthenticated && (
-                <button
-                  className={`btn btn-save ${gameSaved ? 'saved' : ''}`}
-                  onClick={handleSaveGame}
-                  disabled={gameSaved}
-                >
-                  {gameSaved ? 'Saved!' : 'Save to History'}
-                </button>
-              )}
+              <button
+                className={`btn btn-save ${gameSaved ? 'saved' : ''}`}
+                onClick={handleSaveGame}
+                disabled={gameSaved}
+              >
+                {gameSaved ? 'Saved!' : 'Save to History'}
+              </button>
               <button className="btn btn-export" onClick={handleGeneralExport}>
                 Export Results
               </button>
@@ -1071,15 +1069,13 @@ export function ScoreTable({
               <button className="btn btn-secondary" onClick={handleContinueGame}>
                 Continue Playing
               </button>
-              {isAuthenticated && (
-                <button
-                  className={`btn btn-save ${gameSaved ? 'saved' : ''}`}
-                  onClick={handleSaveGame}
-                  disabled={gameSaved}
-                >
-                  {gameSaved ? 'Saved!' : 'Save to History'}
-                </button>
-              )}
+              <button
+                className={`btn btn-save ${gameSaved ? 'saved' : ''}`}
+                onClick={handleSaveGame}
+                disabled={gameSaved}
+              >
+                {gameSaved ? 'Saved!' : 'Save to History'}
+              </button>
               <button className="btn btn-export" onClick={handleSepticaExport}>
                 Export Results
               </button>

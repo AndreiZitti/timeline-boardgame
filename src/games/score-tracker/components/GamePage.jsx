@@ -3,6 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useScoreTracker } from "../hooks/useScoreTracker";
 import { useWhistRoom } from "../hooks/useWhistRoom";
+import { useRentzRoom } from "../hooks/useRentzRoom";
+import { useSepticaRoom } from "../hooks/useSepticaRoom";
+import { useGeneralRoom } from "../hooks/useGeneralRoom";
 import { PlayerSetup } from "./PlayerSetup";
 import { ScoreTable } from "./ScoreTable";
 import "../score-tracker.css";
@@ -10,12 +13,19 @@ import "../score-tracker.css";
 export function GamePage({ gameType }) {
   const router = useRouter();
 
-  // Use the live-enabled hook for Whist, regular hook for others
+  // Use the live-enabled hooks for each game type
   const whistRoom = useWhistRoom();
-  const regularTracker = useScoreTracker(gameType !== 'whist' ? gameType : null);
+  const rentzRoom = useRentzRoom();
+  const septicaRoom = useSepticaRoom();
+  const generalRoom = useGeneralRoom();
 
   // Select which tracker to use based on game type
-  const tracker = gameType === 'whist' ? whistRoom : regularTracker;
+  const tracker =
+    gameType === 'whist' ? whistRoom :
+    gameType === 'rentz' ? rentzRoom :
+    gameType === 'septica' ? septicaRoom :
+    gameType === 'general' ? generalRoom :
+    null;
 
   // Destructure from the selected tracker
   const {
@@ -68,10 +78,8 @@ export function GamePage({ gameType }) {
     DEFAULT_RENTZ_CONFIG,
   } = tracker;
 
-  // Live view props (only available for Whist with useWhistRoom)
-  const { shareUrl, roomCode, isLiveEnabled } = gameType === 'whist'
-    ? whistRoom
-    : { shareUrl: null, roomCode: null, isLiveEnabled: false };
+  // Live view props (available for all game types with room hooks)
+  const { shareUrl, roomCode, isLiveEnabled } = tracker || { shareUrl: null, roomCode: null, isLiveEnabled: false };
 
   const gameConfig = GAME_CONFIG[gameType];
 
