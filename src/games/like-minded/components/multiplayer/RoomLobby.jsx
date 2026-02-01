@@ -1,13 +1,37 @@
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 
 export function RoomLobby({
   roomCode,
   players,
+  currentPlayer,
   isHost,
   onStartGame,
-  onLeave
+  onLeave,
+  onUpdateName
 }) {
-  const canStart = players.length >= 2
+  const [myName, setMyName] = useState(currentPlayer?.name || '')
+
+  // Check if all players have names
+  const allPlayersNamed = players.every(p => p.name && p.name.trim())
+  const myNameSet = myName.trim().length > 0
+  const canStart = players.length >= 2 && allPlayersNamed
+
+  const handleNameChange = (value) => {
+    setMyName(value)
+  }
+
+  const handleNameBlur = () => {
+    if (myName.trim() && myName !== currentPlayer?.name) {
+      onUpdateName(myName.trim())
+    }
+  }
+
+  const handleNameKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.target.blur()
+    }
+  }
 
   return (
     <motion.div
@@ -32,6 +56,28 @@ export function RoomLobby({
         <p className="share-hint">Share this code with friends!</p>
       </motion.div>
 
+      {/* Name Input Section */}
+      <motion.div
+        className="name-input-section"
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.15 }}
+      >
+        <label htmlFor="my-name">Your Name</label>
+        <input
+          id="my-name"
+          type="text"
+          value={myName}
+          onChange={(e) => handleNameChange(e.target.value)}
+          onBlur={handleNameBlur}
+          onKeyDown={handleNameKeyDown}
+          placeholder="Enter your name..."
+          maxLength={20}
+          autoComplete="off"
+        />
+        {myNameSet && <span className="name-check">✓</span>}
+      </motion.div>
+
       {/* Players List */}
       <motion.div
         className="players-list wavelength-players"
@@ -41,20 +87,34 @@ export function RoomLobby({
       >
         <h3>Players ({players.length})</h3>
         <ul>
-          {players.map((player, index) => (
-            <motion.li
-              key={player.id}
-              initial={{ x: -20, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              transition={{ delay: 0.3 + index * 0.1 }}
-            >
-              <span className="player-avatar">
-                {player.name.charAt(0).toUpperCase()}
-              </span>
-              <span className="player-name">{player.name}</span>
-              {index === 0 && <span className="host-badge">Host</span>}
-            </motion.li>
-          ))}
+          {players.map((player, index) => {
+            const hasName = player.name && player.name.trim()
+            return (
+              <motion.li
+                key={player.id}
+                className={hasName ? '' : 'unnamed'}
+                initial={{ x: -20, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ delay: 0.3 + index * 0.1 }}
+              >
+                {hasName ? (
+                  <>
+                    <span className="player-avatar">
+                      {player.name.charAt(0).toUpperCase()}
+                    </span>
+                    <span className="player-name">{player.name}</span>
+                    <span className="player-check">✓</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="player-avatar">?</span>
+                    <span className="player-unnamed">??? (entering name...)</span>
+                  </>
+                )}
+                {index === 0 && <span className="host-badge">Host</span>}
+              </motion.li>
+            )
+          })}
         </ul>
       </motion.div>
 
@@ -67,9 +127,14 @@ export function RoomLobby({
       >
         {isHost ? (
           <>
-            {!canStart && (
+            {players.length < 2 && (
               <p className="waiting-message">
                 Waiting for more players... (minimum 2)
+              </p>
+            )}
+            {players.length >= 2 && !allPlayersNamed && (
+              <p className="waiting-message">
+                Waiting for all players to enter names...
               </p>
             )}
             <button
@@ -82,7 +147,9 @@ export function RoomLobby({
           </>
         ) : (
           <p className="waiting-message">
-            Waiting for host to start the game...
+            {!allPlayersNamed
+              ? 'Waiting for all players to enter names...'
+              : 'Waiting for host to start the game...'}
           </p>
         )}
       </motion.div>

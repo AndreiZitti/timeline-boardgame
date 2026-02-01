@@ -132,19 +132,21 @@ export function useRoom() {
   }, [playerId])
 
   // Create a new room
-  const createRoom = useCallback(async (hostName) => {
+  const createRoom = useCallback(async () => {
     setLoading(true)
     setError(null)
 
     try {
       const code = generateRoomCode()
+      // Use saved name if available, otherwise empty (will be set in lobby)
+      const playerName = profile.name || ''
       const newRoom = {
         code,
         phase: 'lobby',
         round: 1,
         category: null,
         mode: 'table', // 'table' or 'remote'
-        players: [{ id: playerId, name: hostName, number: null, hidden: true, confirmed: false, slot: null }]
+        players: [{ id: playerId, name: playerName, number: null, hidden: true, confirmed: false, slot: null }]
       }
 
       const { data, error: supabaseError } = await supabaseGames
@@ -156,7 +158,6 @@ export function useRoom() {
       if (supabaseError) throw supabaseError
 
       // Save to localStorage and URL
-      updateName(hostName)
       saveRoomCode(data.code)
       updateURLWithRoomCode(data.code)
 
@@ -168,10 +169,10 @@ export function useRoom() {
     } finally {
       setLoading(false)
     }
-  }, [playerId, updateName])
+  }, [playerId, profile.name])
 
   // Join an existing room
-  const joinRoom = useCallback(async (code, playerName) => {
+  const joinRoom = useCallback(async (code) => {
     setLoading(true)
     setError(null)
 
@@ -190,13 +191,15 @@ export function useRoom() {
       const existingPlayer = existingRoom.players.find(p => p.id === playerId)
       if (existingPlayer) {
         // Save to localStorage and URL
-        updateName(playerName)
         saveRoomCode(existingRoom.code)
         updateURLWithRoomCode(existingRoom.code)
 
         setRoom(existingRoom)
         return existingRoom
       }
+
+      // Use saved name if available, otherwise empty (will be set in lobby)
+      const playerName = profile.name || ''
 
       // Add player to room
       const updatedPlayers = [
@@ -214,7 +217,6 @@ export function useRoom() {
       if (updateError) throw updateError
 
       // Save to localStorage and URL
-      updateName(playerName)
       saveRoomCode(data.code)
       updateURLWithRoomCode(data.code)
 
@@ -226,7 +228,7 @@ export function useRoom() {
     } finally {
       setLoading(false)
     }
-  }, [playerId, updateName])
+  }, [playerId, profile.name])
 
   // Set category (host only)
   const setCategory = useCallback(async (category) => {
@@ -368,6 +370,27 @@ export function useRoom() {
     setError(null)
   }, [])
 
+  // Update current player's name in room and save to profile
+  const updateMyName = useCallback(async (name) => {
+    if (!room) return
+
+    const updatedPlayers = room.players.map(p =>
+      p.id === playerId ? { ...p, name } : p
+    )
+
+    const { error: updateError } = await supabaseGames
+      .from('hottake_rooms')
+      .update({ players: updatedPlayers })
+      .eq('code', room.code)
+
+    if (updateError) {
+      setError(updateError.message)
+    } else {
+      // Also save to profile/localStorage
+      updateName(name)
+    }
+  }, [room, playerId, updateName])
+
   // Update profile name (delegates to UserContext)
   const updateProfileName = useCallback((name) => {
     updateName(name)
@@ -393,6 +416,7 @@ export function useRoom() {
     revealNumbers,
     nextRound,
     leaveRoom,
+    updateMyName,
     updateProfileName
   }
 }

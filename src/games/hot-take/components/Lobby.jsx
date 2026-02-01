@@ -248,12 +248,33 @@ const CATEGORIES = {
   }
 }
 
-export function Lobby({ room, isHost, onSetCategory, onSetMode, onStartRound, onLeave }) {
+export function Lobby({ room, isHost, currentPlayer, onSetCategory, onSetMode, onStartRound, onLeave, onUpdateName }) {
   const [category, setCategory] = useState(room.category || '')
   const [showPicker, setShowPicker] = useState(false)
   const [enabledGroups, setEnabledGroups] = useState(['safe', 'classic'])
   const [selectedGroup, setSelectedGroup] = useState('safe')
+  const [myName, setMyName] = useState(currentPlayer?.name || '')
   const mode = room.mode || 'table'
+
+  // Check if all players have names
+  const allPlayersNamed = room.players.every(p => p.name && p.name.trim())
+  const myNameSet = myName.trim().length > 0
+
+  const handleNameChange = (value) => {
+    setMyName(value)
+  }
+
+  const handleNameBlur = () => {
+    if (myName.trim() && myName !== currentPlayer?.name) {
+      onUpdateName(myName.trim())
+    }
+  }
+
+  const handleNameKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.target.blur()
+    }
+  }
 
   const handleCategoryChange = (value) => {
     setCategory(value)
@@ -282,7 +303,7 @@ export function Lobby({ room, isHost, onSetCategory, onSetMode, onStartRound, on
     handleCategoryChange(random)
   }
 
-  const canStart = room.players.length >= 2 && category.trim()
+  const canStart = room.players.length >= 2 && category.trim() && allPlayersNamed
 
   // Get categories for selected group
   const currentGroupCategories = CATEGORIES[selectedGroup]?.items || []
@@ -296,15 +317,41 @@ export function Lobby({ room, isHost, onSetCategory, onSetMode, onStartRound, on
         <span className="code">{room.code}</span>
       </div>
 
+      <div className="name-input-section">
+        <label htmlFor="my-name">Your Name</label>
+        <input
+          id="my-name"
+          type="text"
+          value={myName}
+          onChange={(e) => handleNameChange(e.target.value)}
+          onBlur={handleNameBlur}
+          onKeyDown={handleNameKeyDown}
+          placeholder="Enter your name..."
+          maxLength={20}
+          autoComplete="off"
+        />
+        {myNameSet && <span className="name-check">✓</span>}
+      </div>
+
       <div className="players-list">
         <h3>Players ({room.players.length})</h3>
         <ul>
-          {room.players.map((player, index) => (
-            <li key={player.id}>
-              {player.name}
-              {index === 0 && <span className="host-badge">Host</span>}
-            </li>
-          ))}
+          {room.players.map((player, index) => {
+            const hasName = player.name && player.name.trim()
+            return (
+              <li key={player.id} className={hasName ? '' : 'unnamed'}>
+                {hasName ? (
+                  <>
+                    <span className="player-name">{player.name}</span>
+                    <span className="player-check">✓</span>
+                  </>
+                ) : (
+                  <span className="player-unnamed">??? (entering name...)</span>
+                )}
+                {index === 0 && <span className="host-badge">Host</span>}
+              </li>
+            )
+          })}
         </ul>
       </div>
 
@@ -414,6 +461,8 @@ export function Lobby({ room, isHost, onSetCategory, onSetMode, onStartRound, on
           >
             {room.players.length < 2
               ? 'Waiting for players...'
+              : !allPlayersNamed
+              ? 'Waiting for all names...'
               : !category.trim()
               ? 'Pick a category to start'
               : 'Start Round'}

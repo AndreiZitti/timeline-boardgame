@@ -71,9 +71,11 @@ const CATEGORIES = {
   }
 }
 
-export function SingleDeviceSetup({ onBack, onStartGame }) {
-  const [playerCount, setPlayerCount] = useState(4)
-  const [playerNames, setPlayerNames] = useState(['', '', '', ''])
+export function SingleDeviceSetup({ onBack, onStartGame, initialPlayerNames }) {
+  const [playerCount, setPlayerCount] = useState(initialPlayerNames?.length || 4)
+  const [playerNames, setPlayerNames] = useState(
+    initialPlayerNames || ['', '', '', '']
+  )
   const [category, setCategory] = useState('')
   const [showPicker, setShowPicker] = useState(false)
   const [enabledGroups, setEnabledGroups] = useState(['safe', 'classic'])

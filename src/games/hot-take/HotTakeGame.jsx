@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react'
 import './hot-take.css'
 import { useRoom } from './hooks/useRoom'
-import { CreateRoom } from './components/CreateRoom'
-import { JoinRoom } from './components/JoinRoom'
 import { Lobby } from './components/Lobby'
 import { NumberReveal } from './components/NumberReveal'
 import { HiddenScreen } from './components/HiddenScreen'
@@ -26,7 +24,7 @@ function generateNumbers(count) {
 
 export function HotTakeGame({ onBack, savedName: initialName, onUpdateName }) {
   const [screen, setScreen] = useState('home')
-  const [pendingRoomCode, setPendingRoomCode] = useState(null)
+  const [joinCode, setJoinCode] = useState('')
 
   // Single device mode state
   const [singleDeviceGame, setSingleDeviceGame] = useState(null)
@@ -51,6 +49,7 @@ export function HotTakeGame({ onBack, savedName: initialName, onUpdateName }) {
     revealNumbers,
     nextRound,
     leaveRoom,
+    updateMyName,
     updateProfileName
   } = useRoom()
 
@@ -60,28 +59,33 @@ export function HotTakeGame({ onBack, savedName: initialName, onUpdateName }) {
       const result = await tryRejoin()
       if (result) {
         if (result.needsJoin) {
-          setPendingRoomCode(result.code)
-          setScreen('join')
+          // Join the room directly (name will be entered in lobby)
+          const joined = await joinRoom(result.code)
+          if (joined) {
+            setScreen('game')
+          }
         } else {
           setScreen('game')
         }
       }
     }
     attemptRejoin()
-  }, [tryRejoin])
+  }, [tryRejoin, joinRoom])
 
   // Handle room creation
-  const handleCreateRoom = async (name) => {
-    const newRoom = await createRoom(name)
+  const handleCreateRoom = async () => {
+    const newRoom = await createRoom()
     if (newRoom) {
       setScreen('game')
     }
   }
 
   // Handle joining room
-  const handleJoinRoom = async (code, name) => {
-    const joinedRoom = await joinRoom(code, name)
+  const handleJoinRoom = async () => {
+    if (joinCode.length !== 5) return
+    const joinedRoom = await joinRoom(joinCode)
     if (joinedRoom) {
+      setJoinCode('')
       setScreen('game')
     }
   }
@@ -125,20 +129,8 @@ export function HotTakeGame({ onBack, savedName: initialName, onUpdateName }) {
   }
 
   const handleSingleDeviceNextRound = () => {
-    // Start a new round with same players, new numbers
-    const numbers = generateNumbers(singleDeviceGame.players.length)
-    const players = singleDeviceGame.players.map((p, i) => ({
-      ...p,
-      number: numbers[i],
-      slot: null
-    }))
-
-    setSingleDeviceGame(prev => ({
-      ...prev,
-      players,
-      round: prev.round + 1
-    }))
-    setSingleDevicePhase('passplay')
+    // Go back to setup for new category selection (keep player names)
+    setSingleDevicePhase('setup')
   }
 
   const handleLeaveSingleDevice = () => {
@@ -168,16 +160,39 @@ export function HotTakeGame({ onBack, savedName: initialName, onUpdateName }) {
         </div>
 
         <div className="button-group">
-          <button className="btn btn-primary" onClick={() => setScreen('create')}>
-            Create Room
+          <button
+            className="btn btn-primary"
+            onClick={handleCreateRoom}
+            disabled={loading}
+          >
+            {loading ? 'Creating...' : 'Create Room'}
           </button>
-          <button className="btn btn-secondary" onClick={() => setScreen('join')}>
-            Join Room
-          </button>
+
+          <div className="join-input-group">
+            <input
+              type="text"
+              value={joinCode}
+              onChange={(e) => setJoinCode(e.target.value.toUpperCase().slice(0, 5))}
+              onKeyDown={(e) => e.key === 'Enter' && handleJoinRoom()}
+              placeholder="Room code"
+              maxLength={5}
+              disabled={loading}
+            />
+            <button
+              className="btn btn-join"
+              onClick={handleJoinRoom}
+              disabled={joinCode.length !== 5 || loading}
+            >
+              Join
+            </button>
+          </div>
+
           <button className="btn btn-secondary" onClick={() => setScreen('single-device')}>
             Single Device
           </button>
         </div>
+
+        {error && <p className="error-message">{error}</p>}
       </div>
     )
   }
@@ -194,6 +209,7 @@ export function HotTakeGame({ onBack, savedName: initialName, onUpdateName }) {
             setScreen('home')
           }}
           onStartGame={handleStartSingleDevice}
+          initialPlayerNames={singleDeviceGame?.players?.map(p => p.name)}
         />
       )
     }
@@ -238,33 +254,6 @@ export function HotTakeGame({ onBack, savedName: initialName, onUpdateName }) {
     }
   }
 
-  // Render create room screen
-  if (screen === 'create') {
-    return (
-      <CreateRoom
-        onBack={() => setScreen('home')}
-        onCreateRoom={handleCreateRoom}
-        loading={loading}
-        error={error}
-        savedName={savedName || initialName}
-      />
-    )
-  }
-
-  // Render join room screen
-  if (screen === 'join') {
-    return (
-      <JoinRoom
-        onBack={() => setScreen('home')}
-        onJoinRoom={handleJoinRoom}
-        loading={loading}
-        error={error}
-        savedName={savedName || initialName}
-        initialCode={pendingRoomCode}
-      />
-    )
-  }
-
   // Game screens (based on room phase)
   if (screen === 'game' && room) {
     // Lobby phase
@@ -273,10 +262,12 @@ export function HotTakeGame({ onBack, savedName: initialName, onUpdateName }) {
         <Lobby
           room={room}
           isHost={isHost}
+          currentPlayer={currentPlayer}
           onSetCategory={setCategory}
           onSetMode={setMode}
           onStartRound={startRound}
           onLeave={handleLeave}
+          onUpdateName={updateMyName}
         />
       )
     }

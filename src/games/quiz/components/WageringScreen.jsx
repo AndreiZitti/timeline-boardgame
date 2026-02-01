@@ -4,14 +4,19 @@ export function WageringScreen({
   room,
   roundNumber,
   currentQuestion,
-  availableBoxes,
+  availableBoxes = [],
   currentWager,
   wagerLocked,
   playerWagers,
   onSelectWager,
-  onLockWager
+  onLockWager,
+  isHost,
+  onEndGame
 }) {
   const category = currentQuestion?.category || room.current_question?.category
+
+  // Debug
+  console.log('WageringScreen:', { availableBoxes, currentWager, wagerLocked })
 
   return (
     <div className="quiz-game quiz-wagering">
@@ -55,20 +60,33 @@ export function WageringScreen({
         </button>
       </div>
 
-      {/* Other Players' Wagers */}
+      {/* Other Players' Status */}
       <div className="quiz-wagering__players">
-        <p className="quiz-wagering__label">Other players:</p>
+        <p className="quiz-wagering__label">Players:</p>
         <div className="quiz-wagering__player-list">
-          {playerWagers.map(p => (
-            <div key={p.id} className="quiz-wagering__player">
-              <span className="quiz-wagering__player-name">{p.name}</span>
-              <span className={`quiz-wagering__player-wager ${p.locked ? 'quiz-wagering__player-wager--locked' : ''}`}>
-                {p.locked ? `${p.wager} pts` : p.wager ? 'Choosing...' : '—'}
-              </span>
-            </div>
-          ))}
+          {playerWagers
+            .sort((a, b) => b.score - a.score)
+            .map(p => (
+              <div key={p.id} className="quiz-wagering__player">
+                <span className="quiz-wagering__player-name">{p.name}</span>
+                <span className="quiz-wagering__player-score">{p.score} pts</span>
+                <span className={`quiz-wagering__player-wager ${p.locked ? 'quiz-wagering__player-wager--locked' : ''}`}>
+                  {p.locked ? `Wagered ${p.wager}` : p.wager ? 'Choosing...' : '—'}
+                </span>
+              </div>
+            ))}
         </div>
       </div>
+
+      {/* Host: End Game Early */}
+      {isHost && (
+        <button
+          className="quiz-btn quiz-btn--ghost quiz-end-early"
+          onClick={onEndGame}
+        >
+          End Game Early
+        </button>
+      )}
     </div>
   )
 }

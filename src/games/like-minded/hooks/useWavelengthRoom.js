@@ -134,12 +134,14 @@ export function useWavelengthRoom() {
   }, [playerId])
 
   // Create a new room
-  const createRoom = useCallback(async (hostName) => {
+  const createRoom = useCallback(async () => {
     setLoading(true)
     setError(null)
 
     try {
       const code = generateRoomCode()
+      // Use saved name if available, otherwise empty (will be set in lobby)
+      const playerName = savedName || ''
       const newRoom = {
         code,
         phase: 'lobby',
@@ -150,7 +152,7 @@ export function useWavelengthRoom() {
         guess: null,
         team_score: 0,
         game_score: 0,
-        players: [{ id: playerId, name: hostName }],
+        players: [{ id: playerId, name: playerName }],
         used_spectrums: [],
         metadata: {}
       }
@@ -163,7 +165,6 @@ export function useWavelengthRoom() {
 
       if (supabaseError) throw supabaseError
 
-      updateName(hostName)
       saveRoomCode(data.code)
       setRoom(data)
       return data
@@ -173,10 +174,10 @@ export function useWavelengthRoom() {
     } finally {
       setLoading(false)
     }
-  }, [playerId, updateName])
+  }, [playerId, savedName])
 
   // Join an existing room
-  const joinRoom = useCallback(async (code, playerName) => {
+  const joinRoom = useCallback(async (code) => {
     setLoading(true)
     setError(null)
 
@@ -194,16 +195,13 @@ export function useWavelengthRoom() {
       const existingPlayer = existingRoom.players.find(p => p.id === playerId)
       if (existingPlayer) {
         // Already in room, just reconnect
-        updateName(playerName)
         saveRoomCode(existingRoom.code)
         setRoom(existingRoom)
         return existingRoom
       }
 
-      // Check for duplicate name
-      if (existingRoom.players.some(p => p.name === playerName)) {
-        throw new Error('Name already taken in this room')
-      }
+      // Use saved name if available, otherwise empty (will be set in lobby)
+      const playerName = savedName || ''
 
       // Add player to room
       const updatedPlayers = [...existingRoom.players, { id: playerId, name: playerName }]
@@ -217,7 +215,6 @@ export function useWavelengthRoom() {
 
       if (updateError) throw updateError
 
-      updateName(playerName)
       saveRoomCode(data.code)
       setRoom(data)
       return data
@@ -227,7 +224,7 @@ export function useWavelengthRoom() {
     } finally {
       setLoading(false)
     }
-  }, [playerId, updateName])
+  }, [playerId, savedName])
 
   // Start the game (host only)
   const startGame = useCallback(async () => {
@@ -391,6 +388,27 @@ export function useWavelengthRoom() {
     setError(null)
   }, [room, playerId, players])
 
+  // Update current player's name in room and save to profile
+  const updateMyName = useCallback(async (name) => {
+    if (!room) return
+
+    const updatedPlayers = room.players.map(p =>
+      p.id === playerId ? { ...p, name } : p
+    )
+
+    const { error: updateError } = await supabaseGames
+      .from('likeminded_rooms')
+      .update({ players: updatedPlayers })
+      .eq('code', room.code)
+
+    if (updateError) {
+      setError(updateError.message)
+    } else {
+      // Also save to profile/localStorage
+      updateName(name)
+    }
+  }, [room, playerId, updateName])
+
   return {
     room,
     loading,
@@ -413,6 +431,7 @@ export function useWavelengthRoom() {
     nextPsychic: nextRound,  // Renamed for clarity
     playAgain,
     leaveRoom,
+    updateMyName,
     setError
   }
 }

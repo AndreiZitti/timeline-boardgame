@@ -87,9 +87,14 @@ export function RevealScreen({
                   <span className="quiz-result__icon">
                     {sub.correct ? '✓' : '✗'}
                   </span>
-                  <span className="quiz-result__name">
-                    {getPlayerName(sub.player_id)}
-                  </span>
+                  <div className="quiz-result__info">
+                    <span className="quiz-result__name">
+                      {getPlayerName(sub.player_id)}
+                    </span>
+                    <span className="quiz-result__answer">
+                      "{sub.answer}"
+                    </span>
+                  </div>
                   <span className="quiz-result__time">
                     {formatTime(sub.responseTime)}
                   </span>

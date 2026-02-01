@@ -809,6 +809,139 @@
   margin-top: auto;
 }
 
+/* Join Input Group (Home Screen) */
+.join-input-group {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  max-width: 300px;
+  margin: 0 auto;
+}
+
+.join-input-group input {
+  flex: 1;
+  padding: 14px 16px;
+  font-family: inherit;
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  text-align: center;
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-secondary);
+  color: var(--text);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.join-input-group input::placeholder {
+  letter-spacing: normal;
+  text-transform: none;
+  font-weight: 400;
+  font-size: 1rem;
+}
+
+.join-input-group input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.15);
+}
+
+.join-input-group .btn-join {
+  padding: 14px 20px;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 12px;
+  background: var(--accent);
+  color: white;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.1s ease;
+}
+
+.join-input-group .btn-join:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.join-input-group .btn-join:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.hot-take-home .error-message {
+  color: var(--hot);
+  margin-top: 16px;
+  font-size: 0.9rem;
+}
+
+/* Name Input Section (Lobby) */
+.name-input-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+.name-input-section label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.name-input-section input {
+  flex: 1;
+  padding: 12px 14px;
+  font-family: inherit;
+  font-size: 1rem;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  transition: border-color 0.2s ease;
+}
+
+.name-input-section input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.name-input-section .name-check {
+  color: #22c55e;
+  font-size: 1.2rem;
+}
+
+/* Player List Updates */
+.players-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.players-list li .player-name {
+  flex: 1;
+}
+
+.players-list li .player-check {
+  color: #22c55e;
+  font-size: 0.9rem;
+}
+
+.players-list li .player-unnamed {
+  color: var(--text-secondary);
+  font-style: italic;
+  flex: 1;
+}
+
+.players-list li.unnamed {
+  opacity: 0.7;
+}
+
 /* ============================================
    SINGLE DEVICE MODE
    ============================================ */

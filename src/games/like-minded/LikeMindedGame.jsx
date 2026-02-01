@@ -16,14 +16,13 @@ import {
   GuesserView,
   RevealView,
   WaitingScreen,
-  EndScreen,
-  CreateRoom,
-  JoinRoom
+  EndScreen
 } from './components/multiplayer'
 
 export function LikeMindedGame({ onBack }) {
-  // Mode: 'home' | 'single-setup' | 'single-playing' | 'mp-create' | 'mp-join' | 'mp-game'
+  // Mode: 'home' | 'single-setup' | 'single-playing' | 'mp-game'
   const [mode, setMode] = useState('home')
+  const [joinCode, setJoinCode] = useState('')
 
   // Single device state
   const singleDevice = useGameState()
@@ -58,16 +57,18 @@ export function LikeMindedGame({ onBack }) {
   }
 
   // === MULTIPLAYER HANDLERS ===
-  const handleCreateRoom = async (name) => {
-    const room = await multiplayer.createRoom(name)
+  const handleCreateRoom = async () => {
+    const room = await multiplayer.createRoom()
     if (room) {
       setMode('mp-game')
     }
   }
 
-  const handleJoinRoom = async (code, name) => {
-    const room = await multiplayer.joinRoom(code, name)
+  const handleJoinRoom = async () => {
+    if (joinCode.length !== 4) return
+    const room = await multiplayer.joinRoom(joinCode)
     if (room) {
+      setJoinCode('')
       setMode('mp-game')
     }
   }
@@ -129,16 +130,31 @@ export function LikeMindedGame({ onBack }) {
         >
           <button
             className="btn btn-primary"
-            onClick={() => setMode('mp-create')}
+            onClick={handleCreateRoom}
+            disabled={multiplayer.loading}
           >
-            Create Room
+            {multiplayer.loading ? 'Creating...' : 'Create Room'}
           </button>
-          <button
-            className="btn btn-secondary"
-            onClick={() => setMode('mp-join')}
-          >
-            Join Room
-          </button>
+
+          <div className="join-input-group">
+            <input
+              type="text"
+              value={joinCode}
+              onChange={(e) => setJoinCode(e.target.value.toUpperCase().slice(0, 4))}
+              onKeyDown={(e) => e.key === 'Enter' && handleJoinRoom()}
+              placeholder="Room code"
+              maxLength={4}
+              disabled={multiplayer.loading}
+            />
+            <button
+              className="btn btn-join"
+              onClick={handleJoinRoom}
+              disabled={joinCode.length !== 4 || multiplayer.loading}
+            >
+              Join
+            </button>
+          </div>
+
           <button
             className="btn btn-secondary"
             onClick={() => setMode('single-setup')}
@@ -146,6 +162,8 @@ export function LikeMindedGame({ onBack }) {
             Single Device
           </button>
         </motion.div>
+
+        {multiplayer.error && <p className="error-message">{multiplayer.error}</p>}
       </motion.div>
     )
   }
@@ -240,37 +258,12 @@ export function LikeMindedGame({ onBack }) {
     )
   }
 
-  // === MULTIPLAYER: CREATE ROOM ===
-  if (mode === 'mp-create') {
-    return (
-      <CreateRoom
-        onCreateRoom={handleCreateRoom}
-        onBack={() => setMode('home')}
-        loading={multiplayer.loading}
-        error={multiplayer.error}
-        savedName={multiplayer.savedName}
-      />
-    )
-  }
-
-  // === MULTIPLAYER: JOIN ROOM ===
-  if (mode === 'mp-join') {
-    return (
-      <JoinRoom
-        onJoinRoom={handleJoinRoom}
-        onBack={() => setMode('home')}
-        loading={multiplayer.loading}
-        error={multiplayer.error}
-        savedName={multiplayer.savedName}
-      />
-    )
-  }
-
   // === MULTIPLAYER: GAME ===
   if (mode === 'mp-game' && multiplayer.room) {
     const {
       room,
       players,
+      currentPlayer,
       currentPsychic,
       isHost,
       isPsychic,
@@ -279,7 +272,8 @@ export function LikeMindedGame({ onBack }) {
       submitClue,
       lockInGuess,
       nextPsychic,
-      playAgain
+      playAgain,
+      updateMyName
     } = multiplayer
 
     // Lobby phase
@@ -288,9 +282,11 @@ export function LikeMindedGame({ onBack }) {
         <RoomLobby
           roomCode={room.code}
           players={players}
+          currentPlayer={currentPlayer}
           isHost={isHost}
           onStartGame={startGame}
           onLeave={handleLeaveRoom}
+          onUpdateName={updateMyName}
         />
       )
     }
