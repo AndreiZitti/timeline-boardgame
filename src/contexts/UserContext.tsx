@@ -370,47 +370,65 @@ export function UserProvider({ children }: { children: ReactNode }) {
         return getLocalActivity().slice(0, limit);
       }
 
-      // Fetch from both tables and merge
-      const [gameRes, trackerRes] = await Promise.all([
-        supabase
-          .schema("games")
-          .from("game_results")
-          .select("id, game_type, played_at, players_count, won")
-          .eq("user_id", user.id)
-          .order("played_at", { ascending: false })
-          .limit(limit),
-        supabase
-          .schema("games")
-          .from("tracker_results")
-          .select("id, tracker_type, played_at, players, scores, winner_index")
-          .eq("user_id", user.id)
-          .order("played_at", { ascending: false })
-          .limit(limit),
-      ]);
+      try {
+        // Fetch from both tables and merge (with timeout)
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Timeout')), 5000)
+        );
 
-      const gameItems: ActivityItem[] = (gameRes.data || []).map((r) => ({
-        id: r.id,
-        type: 'game' as const,
-        name: r.game_type,
-        playedAt: r.played_at,
-        playersCount: r.players_count,
-        won: r.won,
-      }));
+        const fetchPromise = Promise.all([
+          supabase
+            .schema("games")
+            .from("game_results")
+            .select("id, game_type, played_at, players_count, won")
+            .eq("user_id", user.id)
+            .order("played_at", { ascending: false })
+            .limit(limit),
+          supabase
+            .schema("games")
+            .from("tracker_results")
+            .select("id, tracker_type, played_at, players, scores, winner_index")
+            .eq("user_id", user.id)
+            .order("played_at", { ascending: false })
+            .limit(limit),
+        ]);
 
-      const trackerItems: ActivityItem[] = (trackerRes.data || []).map((r) => ({
-        id: r.id,
-        type: 'tracker' as const,
-        name: r.tracker_type,
-        playedAt: r.played_at,
-        players: r.players,
-        scores: r.scores,
-        winnerIndex: r.winner_index,
-      }));
+        const [gameRes, trackerRes] = await Promise.race([fetchPromise, timeoutPromise]);
 
-      // Merge and sort by date
-      return [...gameItems, ...trackerItems]
-        .sort((a, b) => new Date(b.playedAt).getTime() - new Date(a.playedAt).getTime())
-        .slice(0, limit);
+        // Check for errors
+        if (gameRes.error || trackerRes.error) {
+          console.error("Failed to fetch activity:", gameRes.error || trackerRes.error);
+          return getLocalActivity().slice(0, limit);
+        }
+
+        const gameItems: ActivityItem[] = (gameRes.data || []).map((r) => ({
+          id: r.id,
+          type: 'game' as const,
+          name: r.game_type,
+          playedAt: r.played_at,
+          playersCount: r.players_count,
+          won: r.won,
+        }));
+
+        const trackerItems: ActivityItem[] = (trackerRes.data || []).map((r) => ({
+          id: r.id,
+          type: 'tracker' as const,
+          name: r.tracker_type,
+          playedAt: r.played_at,
+          players: r.players,
+          scores: r.scores,
+          winnerIndex: r.winner_index,
+        }));
+
+        // Merge and sort by date
+        return [...gameItems, ...trackerItems]
+          .sort((a, b) => new Date(b.playedAt).getTime() - new Date(a.playedAt).getTime())
+          .slice(0, limit);
+      } catch (err) {
+        console.error("Failed to fetch activity:", err);
+        // Fall back to localStorage
+        return getLocalActivity().slice(0, limit);
+      }
     },
     [user, supabase]
   );
