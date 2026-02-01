@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import './quiz.css'
 import { useQuizRoom } from './hooks/useQuizRoom'
 import { loadQuestionsCache, getCacheStatus } from './data/questions-db'
-import { JoinRoom } from './components/JoinRoom'
 import { Lobby } from './components/Lobby'
 import { Board } from './components/Board'
 import { WageringScreen } from './components/WageringScreen'
@@ -12,7 +11,7 @@ import { EndScreen } from './components/EndScreen'
 
 export function QuizGame({ onBack }) {
   const [screen, setScreen] = useState('home')
-  const [pendingRoomCode, setPendingRoomCode] = useState(null)
+  const [joinCode, setJoinCode] = useState('')
   const [cacheLoading, setCacheLoading] = useState(true)
   const [cacheError, setCacheError] = useState(null)
 
@@ -78,8 +77,8 @@ export function QuizGame({ onBack }) {
       const result = await tryRejoin()
       if (result) {
         if (result.needsJoin) {
-          setPendingRoomCode(result.code)
-          setScreen('join')
+          // Pre-fill the join code input
+          setJoinCode(result.code)
         } else {
           setScreen('game')
         }
@@ -97,9 +96,11 @@ export function QuizGame({ onBack }) {
   }
 
   // Handle joining room
-  const handleJoinRoom = async (code) => {
-    const joinedRoom = await joinRoom(code)
+  const handleJoinRoom = async () => {
+    if (joinCode.length !== 5) return
+    const joinedRoom = await joinRoom(joinCode)
     if (joinedRoom) {
+      setJoinCode('')
       setScreen('game')
     }
   }
@@ -168,32 +169,29 @@ export function QuizGame({ onBack }) {
             {loading ? 'Creating...' : 'Create Room'}
           </button>
 
-          <button
-            className="quiz-btn quiz-btn--secondary quiz-btn--large"
-            onClick={() => setScreen('join')}
-          >
-            Join Room
-          </button>
+          <div className="quiz-join-inline">
+            <input
+              type="text"
+              className="quiz-input quiz-join-inline__input"
+              value={joinCode}
+              onChange={(e) => setJoinCode(e.target.value.toUpperCase().slice(0, 5))}
+              onKeyDown={(e) => e.key === 'Enter' && handleJoinRoom()}
+              placeholder="Room code"
+              maxLength={5}
+              disabled={loading}
+            />
+            <button
+              className="quiz-btn quiz-btn--secondary quiz-join-inline__btn"
+              onClick={handleJoinRoom}
+              disabled={joinCode.length !== 5 || loading}
+            >
+              Join
+            </button>
+          </div>
         </div>
 
         {error && <div className="quiz-error">{error}</div>}
       </div>
-    )
-  }
-
-  // Join room screen
-  if (screen === 'join') {
-    return (
-      <JoinRoom
-        onBack={() => {
-          setPendingRoomCode(null)
-          setScreen('home')
-        }}
-        onJoinRoom={handleJoinRoom}
-        loading={loading}
-        error={error}
-        initialCode={pendingRoomCode}
-      />
     )
   }
 

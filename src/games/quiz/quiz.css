@@ -1906,3 +1906,38 @@
     font-size: 0.8rem;
   }
 }
+
+/* ==================== HOME SCREEN INLINE JOIN ==================== */
+
+.quiz-home__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 2rem;
+  width: 100%;
+  max-width: 300px;
+}
+
+.quiz-join-inline {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.quiz-join-inline__input {
+  flex: 1;
+  text-align: center;
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.quiz-join-inline__input::placeholder {
+  letter-spacing: normal;
+  text-transform: none;
+  font-weight: 400;
+}
+
+.quiz-join-inline__btn {
+  min-width: 70px;
+}
