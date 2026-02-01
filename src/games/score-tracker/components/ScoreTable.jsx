@@ -4,6 +4,7 @@ import { WhistBidModal } from "./WhistBidModal";
 import { RentzGameGrid } from "./RentzGameGrid";
 import { RentzScoringModal } from "./RentzScoringModal";
 import { GeneralScoreInput } from "./GeneralScoreInput";
+import { useUser } from "@/contexts/UserContext";
 
 export function ScoreTable({
   gameType,
@@ -53,11 +54,13 @@ export function ScoreTable({
   // Share functionality (for hosts)
   shareUrl = null,
 }) {
+  const { recordTrackerResult } = useUser();
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingRound, setEditingRound] = useState(null);
   const [whistModalRound, setWhistModalRound] = useState(null);
   const [rentzScoringRound, setRentzScoringRound] = useState(null);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [gameSaved, setGameSaved] = useState(false);
   const addRowRef = useRef(null);
   const whistTableRef = useRef(null);
   const whistRowRefs = useRef({});
@@ -99,6 +102,13 @@ export function ScoreTable({
       wrapper.scrollTo({ top: clampedScrollTop, behavior: "smooth" });
     }
   }, [whistActiveRoundIndex, gameType]);
+
+  // Reset gameSaved when game resets (completion flags become false)
+  useEffect(() => {
+    if (!whistIsComplete && !rentzIsComplete) {
+      setGameSaved(false);
+    }
+  }, [whistIsComplete, rentzIsComplete]);
 
   const isWhist = gameType === "whist";
 
@@ -191,6 +201,38 @@ export function ScoreTable({
     }).catch(() => {
       alert('Failed to copy. Here are your results:\n\n' + exportText);
     });
+  };
+
+  // Save game to history
+  const handleSaveGame = () => {
+    if (gameSaved) return;
+
+    let trackerType, playerNames, playerScores, winnerIdx;
+
+    if (gameType === 'whist' && whistIsComplete) {
+      trackerType = 'whist';
+      playerNames = players;
+      playerScores = whistTotals;
+      winnerIdx = whistTotals.reduce((maxIdx, val, idx, arr) =>
+        val > arr[maxIdx] ? idx : maxIdx, 0);
+    } else if (gameType === 'rentz' && rentzIsComplete) {
+      trackerType = 'rentz';
+      playerNames = players;
+      playerScores = rentzTotals;
+      winnerIdx = rentzTotals.reduce((maxIdx, val, idx, arr) =>
+        val > arr[maxIdx] ? idx : maxIdx, 0);
+    } else {
+      return;
+    }
+
+    recordTrackerResult({
+      trackerType,
+      players: playerNames,
+      scores: playerScores,
+      winnerIndex: winnerIdx,
+    });
+
+    setGameSaved(true);
   };
 
   // Whist-specific render
@@ -346,9 +388,18 @@ export function ScoreTable({
           <div className="game-complete-message">
             <p>Winner: <strong>{players[whistLeaderIndex]}</strong> with {whistTotals[whistLeaderIndex]} points!</p>
             {!isViewOnly && (
-              <button className="btn btn-export" onClick={handleExport}>
-                Export Results
-              </button>
+              <div className="complete-actions">
+                <button
+                  className={`btn btn-save ${gameSaved ? 'saved' : ''}`}
+                  onClick={handleSaveGame}
+                  disabled={gameSaved}
+                >
+                  {gameSaved ? 'Saved!' : 'Save to History'}
+                </button>
+                <button className="btn btn-export" onClick={handleExport}>
+                  Export Results
+                </button>
+              </div>
             )}
           </div>
         )}
@@ -584,9 +635,18 @@ export function ScoreTable({
         {rentzIsComplete && (
           <div className="game-complete-message">
             <p>Winner: <strong>{players[rentzLeaderIndex]}</strong> with {rentzTotals[rentzLeaderIndex]} points!</p>
-            <button className="btn btn-export" onClick={handleRentzExport}>
-              Export Results
-            </button>
+            <div className="complete-actions">
+              <button
+                className={`btn btn-save ${gameSaved ? 'saved' : ''}`}
+                onClick={handleSaveGame}
+                disabled={gameSaved}
+              >
+                {gameSaved ? 'Saved!' : 'Save to History'}
+              </button>
+              <button className="btn btn-export" onClick={handleRentzExport}>
+                Export Results
+              </button>
+            </div>
           </div>
         )}
 
