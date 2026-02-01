@@ -2741,6 +2741,24 @@
   color: #fff;
 }
 
+/* End Game Button */
+.btn-end-game {
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #ef4444;
+  background: transparent;
+  border: 1px solid #ef4444;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-end-game:hover {
+  background: #ef4444;
+  color: #fff;
+}
+
 /* Share Modal */
 .share-modal {
   max-width: 450px;

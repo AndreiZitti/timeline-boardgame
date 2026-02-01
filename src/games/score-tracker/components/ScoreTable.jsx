@@ -54,13 +54,14 @@ export function ScoreTable({
   // Share functionality (for hosts)
   shareUrl = null,
 }) {
-  const { recordTrackerResult } = useUser();
+  const { recordTrackerResult, isAuthenticated } = useUser();
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingRound, setEditingRound] = useState(null);
   const [whistModalRound, setWhistModalRound] = useState(null);
   const [rentzScoringRound, setRentzScoringRound] = useState(null);
   const [showShareModal, setShowShareModal] = useState(false);
   const [gameSaved, setGameSaved] = useState(false);
+  const [gameEnded, setGameEnded] = useState(false);
   const addRowRef = useRef(null);
   const whistTableRef = useRef(null);
   const whistRowRefs = useRef({});
@@ -103,12 +104,24 @@ export function ScoreTable({
     }
   }, [whistActiveRoundIndex, gameType]);
 
-  // Reset gameSaved when game resets (completion flags become false)
+  // Reset gameSaved and gameEnded when game resets
   useEffect(() => {
     if (!whistIsComplete && !rentzIsComplete) {
       setGameSaved(false);
     }
   }, [whistIsComplete, rentzIsComplete]);
+
+  // Reset gameEnded when rounds change significantly (e.g., reset)
+  useEffect(() => {
+    if (gameType === 'general' && (!generalData || generalData.length === 0)) {
+      setGameEnded(false);
+      setGameSaved(false);
+    }
+    if (gameType === 'septica' && (!rounds || rounds.length === 0)) {
+      setGameEnded(false);
+      setGameSaved(false);
+    }
+  }, [gameType, generalData?.length, rounds?.length]);
 
   const isWhist = gameType === "whist";
 
@@ -221,6 +234,18 @@ export function ScoreTable({
       playerScores = rentzTotals;
       winnerIdx = rentzTotals.reduce((maxIdx, val, idx, arr) =>
         val > arr[maxIdx] ? idx : maxIdx, 0);
+    } else if (gameType === 'general' && gameEnded && generalTotals) {
+      trackerType = 'general';
+      playerNames = players;
+      playerScores = generalTotals;
+      winnerIdx = generalTotals.reduce((maxIdx, val, idx, arr) =>
+        val > arr[maxIdx] ? idx : maxIdx, 0);
+    } else if (gameType === 'septica' && gameEnded && totals) {
+      trackerType = 'septica';
+      playerNames = isTeamGame ? teams.map(t => t[0]) : players;
+      playerScores = totals;
+      winnerIdx = totals.reduce((maxIdx, val, idx, arr) =>
+        val > arr[maxIdx] ? idx : maxIdx, 0);
     } else {
       return;
     }
@@ -233,6 +258,73 @@ export function ScoreTable({
     });
 
     setGameSaved(true);
+  };
+
+  // Export results for General
+  const handleGeneralExport = () => {
+    if (!generalData || !players || !generalTotals) return;
+
+    const sortedPlayers = players
+      .map((name, i) => ({ name, score: generalTotals[i] }))
+      .sort((a, b) => b.score - a.score);
+
+    let exportText = `🎯 GAME RESULTS\n`;
+    exportText += `${'─'.repeat(24)}\n\n`;
+    exportText += `🏆 FINAL STANDINGS\n\n`;
+
+    sortedPlayers.forEach((p, i) => {
+      const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '  ';
+      exportText += `${medal} ${p.name}: ${p.score} pts\n`;
+    });
+
+    const completedRounds = generalData.filter(r => r.complete).length;
+    exportText += `\n${'─'.repeat(24)}\n`;
+    exportText += `📊 ${completedRounds} rounds played\n`;
+
+    navigator.clipboard.writeText(exportText).then(() => {
+      alert('Results copied to clipboard!');
+    }).catch(() => {
+      alert('Failed to copy. Here are your results:\n\n' + exportText);
+    });
+  };
+
+  // Export results for Septica
+  const handleSepticaExport = () => {
+    if (!rounds || !totals) return;
+
+    const columnNames = isTeamGame ? teams.map(t => t[0]) : players;
+    const sortedPlayers = columnNames
+      .map((name, i) => ({ name, score: totals[i] }))
+      .sort((a, b) => b.score - a.score);
+
+    let exportText = `🃏 SEPTICA RESULTS\n`;
+    exportText += `${'─'.repeat(24)}\n\n`;
+    exportText += `🏆 FINAL STANDINGS\n\n`;
+
+    sortedPlayers.forEach((p, i) => {
+      const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '  ';
+      exportText += `${medal} ${p.name}: ${p.score} pts\n`;
+    });
+
+    exportText += `\n${'─'.repeat(24)}\n`;
+    exportText += `📊 ${rounds.length} rounds played\n`;
+
+    navigator.clipboard.writeText(exportText).then(() => {
+      alert('Results copied to clipboard!');
+    }).catch(() => {
+      alert('Failed to copy. Here are your results:\n\n' + exportText);
+    });
+  };
+
+  // End game handler
+  const handleEndGame = () => {
+    setGameEnded(true);
+  };
+
+  // Continue game (undo end)
+  const handleContinueGame = () => {
+    setGameEnded(false);
+    setGameSaved(false);
   };
 
   // Whist-specific render
@@ -699,19 +791,28 @@ export function ScoreTable({
             &larr; Score Tracker
           </button>
           <span className="score-table-title">{config.name}</span>
-          <button className="btn-reset" onClick={onReset}>
-            Reset
-          </button>
+          <div className="header-actions">
+            {!gameEnded && generalData.length > 0 && (
+              <button className="btn-end-game" onClick={handleEndGame}>
+                End Game
+              </button>
+            )}
+            <button className="btn-reset" onClick={onReset}>
+              Reset
+            </button>
+          </div>
         </div>
 
-        {/* Score input section */}
-        <GeneralScoreInput
-          currentPlayerName={currentPlayerName}
-          currentPlayerTotal={currentPlayerTotal}
-          onAddScore={onAddGeneralScore}
-          onUndo={onUndoGeneralScore}
-          canUndo={generalCanUndo}
-        />
+        {/* Score input section - hide when game ended */}
+        {!gameEnded && (
+          <GeneralScoreInput
+            currentPlayerName={currentPlayerName}
+            currentPlayerTotal={currentPlayerTotal}
+            onAddScore={onAddGeneralScore}
+            onUndo={onUndoGeneralScore}
+            canUndo={generalCanUndo}
+          />
+        )}
 
         {/* Score table */}
         <div className="score-table-wrapper general-table-wrapper">
@@ -791,6 +892,30 @@ export function ScoreTable({
             )}
           </table>
         </div>
+
+        {/* Game ended message */}
+        {gameEnded && generalData.length > 0 && (
+          <div className="game-complete-message">
+            <p>Winner: <strong>{players[generalLeaderIndex]}</strong> with {generalTotals[generalLeaderIndex]} points!</p>
+            <div className="complete-actions">
+              <button className="btn btn-secondary" onClick={handleContinueGame}>
+                Continue Playing
+              </button>
+              {isAuthenticated && (
+                <button
+                  className={`btn btn-save ${gameSaved ? 'saved' : ''}`}
+                  onClick={handleSaveGame}
+                  disabled={gameSaved}
+                >
+                  {gameSaved ? 'Saved!' : 'Save to History'}
+                </button>
+              )}
+              <button className="btn btn-export" onClick={handleGeneralExport}>
+                Export Results
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -836,23 +961,32 @@ export function ScoreTable({
             &larr; Score Tracker
           </button>
           <span className="score-table-title">{config.name}</span>
-          <button className="btn-reset" onClick={onReset}>
-            Reset
-          </button>
+          <div className="header-actions">
+            {!gameEnded && rounds.length > 0 && (
+              <button className="btn-end-game" onClick={handleEndGame}>
+                End Game
+              </button>
+            )}
+            <button className="btn-reset" onClick={onReset}>
+              Reset
+            </button>
+          </div>
         </div>
 
-        {/* Show alternating player order with active player highlighted */}
-        <div className="septica-players-bar">
-          {alternatingPlayers.map((p, i) => (
-            <span
-              key={i}
-              className={`septica-player-chip ${i === activePlayerIndex ? 'active' : ''}`}
-            >
-              {p.name}
-              <span className="septica-player-team">({p.team})</span>
-            </span>
-          ))}
-        </div>
+        {/* Show alternating player order with active player highlighted - hide when game ended */}
+        {!gameEnded && (
+          <div className="septica-players-bar">
+            {alternatingPlayers.map((p, i) => (
+              <span
+                key={i}
+                className={`septica-player-chip ${i === activePlayerIndex ? 'active' : ''}`}
+              >
+                {p.name}
+                <span className="septica-player-team">({p.team})</span>
+              </span>
+            ))}
+          </div>
+        )}
 
         <div className="score-table-wrapper septica-table-wrapper">
           <table className="score-table septica-table">
@@ -889,13 +1023,15 @@ export function ScoreTable({
                   </tr>
                 );
               })}
-              {/* Inline add row - always visible at bottom */}
-              <tr ref={addRowRef} className="septica-add-row" onClick={() => setShowAddModal(true)}>
-                <td className="round-col">{rounds.length + 1}</td>
-                <td colSpan={columnHeaders.length} className="add-row-cell">
-                  <span className="add-row-btn">+ Add Round</span>
-                </td>
-              </tr>
+              {/* Inline add row - hide when game ended */}
+              {!gameEnded && (
+                <tr ref={addRowRef} className="septica-add-row" onClick={() => setShowAddModal(true)}>
+                  <td className="round-col">{rounds.length + 1}</td>
+                  <td colSpan={columnHeaders.length} className="add-row-cell">
+                    <span className="add-row-btn">+ Add Round</span>
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -925,6 +1061,30 @@ export function ScoreTable({
             onClose={() => setEditingRound(null)}
             isEditing
           />
+        )}
+
+        {/* Game ended message */}
+        {gameEnded && rounds.length > 0 && (
+          <div className="game-complete-message">
+            <p>Winner: <strong>{columnHeaders[leaderIndex]}</strong> with {totals[leaderIndex]} points!</p>
+            <div className="complete-actions">
+              <button className="btn btn-secondary" onClick={handleContinueGame}>
+                Continue Playing
+              </button>
+              {isAuthenticated && (
+                <button
+                  className={`btn btn-save ${gameSaved ? 'saved' : ''}`}
+                  onClick={handleSaveGame}
+                  disabled={gameSaved}
+                >
+                  {gameSaved ? 'Saved!' : 'Save to History'}
+                </button>
+              )}
+              <button className="btn btn-export" onClick={handleSepticaExport}>
+                Export Results
+              </button>
+            </div>
+          </div>
         )}
       </div>
     );
